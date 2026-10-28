@@ -15,7 +15,23 @@ uvicorn inet_ivs.asgi:application --host 127.0.0.1 --port 8000 --reload
 
 Abre `http://127.0.0.1:8000/admin/`. Para crear un administrador, ejecuta `python manage.py createsuperuser` en otra terminal con `.venv` activado.
 
-Sin variables de PostgreSQL, Django utiliza el archivo local `db.sqlite3`. Redis debe estar ejecutándose en `localhost:6379` para la capa de Channels; comprueba su disponibilidad con `redis-cli ping`. Para utilizar otra dirección, define la variable `REDIS_URL` antes de iniciar Uvicorn. El archivo `.env.dev` corresponde al entorno Docker y no se carga automáticamente en este flujo.
+La base principal predeterminada es PostgreSQL `inet-ivs` en `192.168.0.8`. En desarrollo, Django carga las credenciales de `.env.dev` automáticamente; las variables de entorno ya definidas tienen prioridad. No se carga ese archivo cuando `DJANGO_DEBUG=False` está definido en el entorno. Redis debe estar ejecutándose en `localhost:6379` para la capa de Channels; comprueba su disponibilidad con `redis-cli ping`. Para utilizar otra dirección, define la variable `REDIS_URL` antes de iniciar Uvicorn.
+
+## Conexiones a bases de datos
+
+Configura las variables de entorno antes de iniciar cada proceso de Django, Uvicorn, Celery o Compose. `.env.example` contiene los nombres; guarda las credenciales reales únicamente en el entorno o en un archivo privado excluido de Git.
+
+| Alias Django | Destino | Variables |
+| --- | --- | --- |
+| `default` | PostgreSQL de la aplicación, `192.168.0.8` | `POSTGRES_HOST`, `POSTGRES_PORT`, `POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD` |
+| `ivs_sat` | PostgreSQL `IVS_SAT`, `192.168.0.8` | `IVS_SAT_USER`, `IVS_SAT_PASSWORD`; opcionalmente `IVS_SAT_DB`, `IVS_SAT_HOST`, `IVS_SAT_PORT` |
+| `sqlserver` | SQL Server, `192.168.0.10` | `SQLSERVER_DB`, `SQLSERVER_USER`, `SQLSERVER_PASSWORD`; opcionalmente `SQLSERVER_HOST`, `SQLSERVER_PORT` |
+
+Los puertos predeterminados son 5432 y 1433. Las conexiones secundarias se habilitan al definir `IVS_SAT_USER` y `SQLSERVER_DB`, respectivamente. La base principal usa por defecto `inet-ivs` en `192.168.0.8`; configura `POSTGRES_USER` y `POSTGRES_PASSWORD` y, si corresponde, cambia `POSTGRES_DB` y `POSTGRES_HOST`. El nombre `IVS_SAT` respeta mayúsculas. SQL Server utiliza `mssql-django` y `mssql-python`, que incluye el controlador ODBC 18; el servidor debe disponer de un certificado confiable válido para el host configurado. Consulta los requisitos de sistema de [mssql-python](https://github.com/microsoft/mssql-python#installation).
+
+Consulta las bases secundarias explícitamente con `Modelo.objects.using('ivs_sat')` o `Modelo.objects.using('sqlserver')`, o mediante `django.db.connections` para SQL parametrizado. El router impide aplicar operaciones de migración de modelos en esos dos alias; no ejecutes `migrate --database` sobre ellos, ya que Django podría crear su tabla de registro de migraciones. Usa cuentas con los permisos mínimos necesarios. No hay modelos ni consultas de negocio configurados todavía.
+
+En Compose, `POSTGRES_HOST` permite seleccionar el servidor externo; el servicio local `db` sigue existiendo y no contiene automáticamente los datos de ese servidor. **El servicio `web` ejecuta `migrate` automáticamente contra `default` al iniciar**: verifica nombre, permisos y respaldo antes de apuntarlo a una base existente. Cambiar de SQLite o del PostgreSQL local a otro servidor no transfiere datos.
 
 Uvicorn ejecuta ASGI, necesario para WebSockets. Django `runserver` no utiliza el enrutador ASGI de Channels con esta configuración.
 

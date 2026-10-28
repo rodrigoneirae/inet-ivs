@@ -14,9 +14,14 @@ import os
 from pathlib import Path
 
 from django.core.exceptions import ImproperlyConfigured
+from dotenv import load_dotenv
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
+
+# Local development credentials do not override explicitly supplied variables.
+if os.environ.get('DJANGO_DEBUG', 'true').lower() == 'true':
+    load_dotenv(BASE_DIR / '.env.dev', override=False)
 
 
 # Quick-start development settings - unsuitable for production
@@ -112,20 +117,43 @@ CELERY_BEAT_SCHEDULE = {}
 
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': os.environ.get('POSTGRES_DB', 'inet-ivs'),
+        'USER': os.environ.get('POSTGRES_USER', ''),
+        'PASSWORD': os.environ.get('POSTGRES_PASSWORD', ''),
+        'HOST': os.environ.get('POSTGRES_HOST', '192.168.0.8'),
+        'PORT': os.environ.get('POSTGRES_PORT', '5432'),
+        'OPTIONS': {'connect_timeout': 5},
     }
 }
 
-if os.environ.get('POSTGRES_HOST'):
-    DATABASES['default'] = {
+if os.environ.get('IVS_SAT_USER'):
+    DATABASES['ivs_sat'] = {
         'ENGINE': 'django.db.backends.postgresql',
-        'NAME': os.environ['POSTGRES_DB'],
-        'USER': os.environ['POSTGRES_USER'],
-        'PASSWORD': os.environ['POSTGRES_PASSWORD'],
-        'HOST': os.environ['POSTGRES_HOST'],
-        'PORT': os.environ.get('POSTGRES_PORT', '5432'),
+        'NAME': os.environ.get('IVS_SAT_DB', 'IVS_SAT'),
+        'USER': os.environ['IVS_SAT_USER'],
+        'PASSWORD': os.environ.get('IVS_SAT_PASSWORD', ''),
+        'HOST': os.environ.get('IVS_SAT_HOST', '192.168.0.8'),
+        'PORT': os.environ.get('IVS_SAT_PORT', '5432'),
+        'OPTIONS': {'connect_timeout': 5},
     }
+
+if os.environ.get('SQLSERVER_DB'):
+    DATABASES['sqlserver'] = {
+        'ENGINE': 'mssql',
+        'NAME': os.environ['SQLSERVER_DB'],
+        'USER': os.environ.get('SQLSERVER_USER', ''),
+        'PASSWORD': os.environ.get('SQLSERVER_PASSWORD', ''),
+        'HOST': os.environ.get('SQLSERVER_HOST', '192.168.0.10'),
+        'PORT': os.environ.get('SQLSERVER_PORT', '1433'),
+        'OPTIONS': {
+            'python_driver': 'mssql_python',
+            'connection_timeout': 5,
+            'connection_retries': 0,
+        },
+    }
+
+DATABASE_ROUTERS = ['inet_ivs.db_router.ExternalDatabaseRouter']
 
 
 # Password validation
