@@ -4,6 +4,10 @@ __pycache__/
 .env
 .env.*
 !.env.example
+!.env.dev.example
+.pass
+celerybeat-schedule*
 .idea/
 db.sqlite3
 staticfiles/
+theme/static/css/dist/

@@ -1,4 +1,26 @@
 services:
   web:
+    user: "${LOCAL_UID:-1000}:${LOCAL_GID:-1000}"
+    environment:
+      DJANGO_DEBUG: "True"
+      DJANGO_ALLOWED_HOSTS: localhost,127.0.0.1
+      DJANGO_CSRF_TRUSTED_ORIGINS: ""
+    volumes:
+      - .:/app
     ports:
       - "127.0.0.1:8000:8000"
+    command: >
+      sh -c "python manage.py migrate --noinput &&
+             exec uvicorn inet_ivs.asgi:application --host 0.0.0.0 --port 8000 --reload"
+
+  worker:
+    environment:
+      DJANGO_DEBUG: "True"
+    volumes:
+      - .:/app:ro
+
+  beat:
+    environment:
+      DJANGO_DEBUG: "True"
+    volumes:
+      - .:/app:ro

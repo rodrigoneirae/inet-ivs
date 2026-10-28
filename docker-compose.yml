@@ -1,8 +1,9 @@
 services:
   web:
     build: .
+    image: ${COMPOSE_PROJECT_NAME:-inet-ivs}-app
     restart: unless-stopped
-    environment:
+    environment: &app_environment
       DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY:?Configura DJANGO_SECRET_KEY}
       DJANGO_DEBUG: ${DJANGO_DEBUG:-False}
       DJANGO_ALLOWED_HOSTS: ${DJANGO_ALLOWED_HOSTS:-localhost,127.0.0.1}
@@ -12,15 +13,44 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Configura POSTGRES_PASSWORD}
       POSTGRES_HOST: db
       REDIS_URL: redis://redis:6379/0
+      CELERY_BROKER_URL: redis://redis:6379/1
+      CELERY_RESULT_BACKEND: redis://redis:6379/2
+      DJANGO_TIME_ZONE: ${DJANGO_TIME_ZONE:-UTC}
     depends_on:
       db:
         condition: service_healthy
       redis:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import socket; socket.create_connection(('127.0.0.1', 8000), 2).close()"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+      start_period: 30s
     command: >
       sh -c "python manage.py migrate --noinput &&
              python manage.py collectstatic --noinput &&
              exec uvicorn inet_ivs.asgi:application --host 0.0.0.0 --port 8000 --proxy-headers --forwarded-allow-ips '*'"
+
+  worker:
+    image: ${COMPOSE_PROJECT_NAME:-inet-ivs}-app
+    restart: unless-stopped
+    environment: *app_environment
+    depends_on:
+      web:
+        condition: service_healthy
+    command: celery -A inet_ivs worker --loglevel=info
+
+  beat:
+    image: ${COMPOSE_PROJECT_NAME:-inet-ivs}-app
+    restart: unless-stopped
+    environment: *app_environment
+    depends_on:
+      web:
+        condition: service_healthy
+    volumes:
+      - celery_beat_data:/var/lib/celery
+    command: celery -A inet_ivs beat --loglevel=info --schedule=/var/lib/celery/celerybeat-schedule
 
   db:
     image: postgres:17-alpine
@@ -40,6 +70,9 @@ services:
   redis:
     image: redis:7-alpine
     restart: unless-stopped
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data:/data
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 5s
@@ -48,3 +81,5 @@ services:
 
 volumes:
   postgres_data:
+  redis_data:
+  celery_beat_data:
