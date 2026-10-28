@@ -57,6 +57,7 @@ INSTALLED_APPS = [
     'tailwind',
     'theme',
     'modulo.acceso',
+    'modulo.anymarket',
 ]
 
 TAILWIND_APP_NAME = 'theme'
@@ -116,6 +117,17 @@ CELERY_BEAT_SCHEDULE = {
         'schedule': 3600.0,
     },
 }
+
+ANYMARKET_TOKEN = os.environ.get('ANYMARKET_TOKEN', '')
+ANYMARKET_ENVIRONMENT = os.environ.get('ANYMARKET_ENVIRONMENT', 'production')
+ANYMARKET_PLATFORM = os.environ.get('ANYMARKET_PLATFORM', 'INET')
+ANYMARKET_ENABLED = os.environ.get('ANYMARKET_ENABLED', 'false').lower() == 'true'
+ANYMARKET_TIME_ZONE = os.environ.get('ANYMARKET_TIME_ZONE', 'America/Santiago')
+if ANYMARKET_ENABLED:
+    CELERY_BEAT_SCHEDULE['sincronizar-pedidos-anymarket'] = {
+        'task': 'modulo.anymarket.tasks.sincronizar_pedidos',
+        'schedule': 60.0,
+    }
 
 
 # Database
@@ -202,6 +214,7 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/6.1/howto/static-files/
 
 STATIC_URL = '/static/'
+STATICFILES_DIRS = [BASE_DIR / 'static']
 STATIC_ROOT = BASE_DIR / 'staticfiles'
 STORAGES = {
     'default': {'BACKEND': 'django.core.files.storage.FileSystemStorage'},

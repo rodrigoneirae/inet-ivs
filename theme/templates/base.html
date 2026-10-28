@@ -1,13 +1,18 @@
-{% load tailwind_tags %}
+{% load tailwind_tags static %}
 <!DOCTYPE html>
 <html lang="es">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}inet-ivs{% endblock %}</title>
+    <script src="{% static 'js/theme.js' %}"></script>
+    <script src="{% static 'js/sidebar.js' %}" defer></script>
+    <script src="{% static 'js/user-menu.js' %}" defer></script>
     {% tailwind_css %}
+    {% block extra_head %}{% endblock %}
 </head>
 <body class="min-h-screen bg-slate-50 text-slate-900 dark:bg-slate-900 dark:text-slate-50">
     {% block content %}{% endblock %}
+    {% block extra_scripts %}{% endblock %}
 </body>
 </html>

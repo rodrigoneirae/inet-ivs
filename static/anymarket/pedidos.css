@@ -1,0 +1,33 @@
+.tabulator {
+    width: 100%;
+    max-width: 100%;
+    border: 1px solid #e2e8f0;
+    border-radius: 0;
+    background: #fff;
+    color: #0f172a;
+}
+.tabulator .tabulator-header { background: #fff; color: #475569; }
+.tabulator .tabulator-header .tabulator-col { background: #fff; }
+.tabulator .tabulator-header .tabulator-col { cursor: pointer; }
+.tabulator .tabulator-header .tabulator-col:focus-visible { outline: 2px solid #2563eb; outline-offset: -2px; }
+.tabulator .filtro-encabezado { width: 100%; padding: 0.35rem; border: 1px solid #94a3b8; border-radius: 0.25rem; background: #fff; color: #0f172a; cursor: pointer; }
+.dark .tabulator .filtro-encabezado { border-color: #64748b; background: #1e293b; color: #f8fafc; }
+.tabulator .tabulator-row { background: #fff; color: #0f172a; }
+.tabulator .tabulator-row.tabulator-row-even { background: #f8fafc; }
+.tabulator .tabulator-row .tabulator-cell { padding: 1rem 0.65rem; border-color: #f1f5f9; }
+.tabulator .tabulator-header .tabulator-col .tabulator-col-content { padding: 0.75rem 0.65rem; }
+.tabulator .tabulator-row:hover { background: #eff6ff; }
+.dark .tabulator { border-color: #475569; background: #1e293b; color: #f8fafc; }
+.dark .tabulator .tabulator-header, .dark .tabulator .tabulator-header .tabulator-col { background: #334155; color: #f8fafc; }
+.dark .tabulator .tabulator-row, .dark .tabulator .tabulator-row.tabulator-row-even { background: #1e293b; color: #f8fafc; }
+.dark .tabulator .tabulator-row:hover { background: #334155; }
+.dark .tabulator .tabulator-cell, .dark .tabulator .tabulator-col { border-color: #475569; }
+.dark .litepicker {
+    --litepicker-container-months-color-bg: #1e293b;
+    --litepicker-month-header-color: #f8fafc;
+    --litepicker-month-weekday-color: #cbd5e1;
+    --litepicker-day-color: #f8fafc;
+    --litepicker-day-color-hover: #93c5fd;
+    --litepicker-button-prev-month-color: #cbd5e1;
+    --litepicker-button-next-month-color: #cbd5e1;
+}

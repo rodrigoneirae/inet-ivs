@@ -73,6 +73,20 @@ Inicia solo una instancia de Beat para evitar duplicar tareas programadas. El ar
 
 ## Tareas y programación
 
+### Pedidos AnyMarket
+
+La integración consulta pedidos creados desde el 27-10-2026 a las 00:00 en `ANYMARKET_TIME_ZONE` (por defecto `America/Santiago`, horario de Chile continental). La carga inicial importa pedidos en estado `PAID_WAITING_SHIP`; las consultas incrementales incorporan los que alcancen ese estado y actualizan los ya importados, incluso si se cancelan. La consulta inicial no incluye pedidos que ya hayan avanzado a otro estado. Los datos completos se guardan en la base principal y todavía no se envían a INET. Define el acceso y la retención de esta base teniendo en cuenta que los pedidos contienen datos personales.
+
+Configura `ANYMARKET_TOKEN` en el entorno privado, `ANYMARKET_ENVIRONMENT` como `sandbox` o `production` (predeterminado production) y `ANYMARKET_PLATFORM` con el nombre registrado ante AnyMarket. Activa la ejecución automática con `ANYMARKET_ENABLED=true` y reinicia worker y beat tras aplicar las migraciones. El planificador consulta cada minuto; requiere worker, beat y acceso a PostgreSQL y AnyMarket. El token debe estar disponible en el worker y no debe registrarse en logs.
+
+La integración usa consultas paginadas y no marca el feed como leído. La primera ejecución recorre el historial en intervalos de hasta 119 días; las siguientes consultan cambios en intervalos de hasta 6 días, con un solapamiento de cinco minutos. Si una consulta falla, no avanza el punto de control. Supervisa los errores del worker y los límites de la API; una demora de indexación superior al solapamiento puede requerir una reconciliación manual. Mantén una sola cuenta y ambiente por base de datos: cambiar token o ambiente requiere una estrategia de migración de datos y punto de control.
+
+El listado está disponible en `/anymarket/pedidos/` para usuarios con el permiso `anymarket.view_pedido`, que un administrador puede asignar directamente o mediante un grupo en Django Admin. El acceso se deniega por defecto. La tabla utiliza Tabulator 6.3.1 con archivos compartidos en `static/vendor/tabulator/` y su licencia MIT; si JavaScript no está disponible, se muestra una tabla HTML con la misma paginación. Los estilos y scripts de la vista están en `static/anymarket/`.
+
+La columna Status corresponde al estado del marketplace. La exportación Excel incluye todos los pedidos que coinciden con los filtros, con un máximo de 50 000 por descarga; para instalar la dependencia de exportación, actualiza el entorno con `pip install -r requirements.txt` y reconstruye la imagen si usas Docker.
+
+Los filtros de fecha usan Litepicker 2.0.12, servido localmente desde `static/vendor/litepicker/` bajo licencia MIT. Los campos aceptan fechas escritas como `AAAA-MM-DD` y conservan el selector de fecha nativo cuando JavaScript no está disponible. La validación y la zona horaria se aplican en el servidor.
+
 Define tareas con `@shared_task` en `tasks.py` dentro de una aplicación de Django incluida en `INSTALLED_APPS`. Envíalas con `nombre_de_tarea.delay(...)`. Define la programación en `CELERY_BEAT_SCHEDULE` de `inet_ivs/settings.py`. Para configurar la zona horaria, usa `DJANGO_TIME_ZONE` (por defecto `UTC`).
 
 Channels usa la base Redis 0, Celery usa la 1 como cola y la 2 para resultados. El Redis de Compose mantiene los datos en un volumen con AOF; esto no reemplaza los respaldos ni garantiza por sí solo la ejecución exacta de cada tarea. El planificador de Beat mantiene su estado en otro volumen y debe ejecutarse como una sola instancia. No hay administración de horarios desde Django Admin: el programador integrado usa la configuración del código.

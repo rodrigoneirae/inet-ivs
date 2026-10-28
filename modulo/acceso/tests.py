@@ -56,3 +56,15 @@ class AccesoTests(TestCase):
         self.client.force_login(usuario)
         self.assertContains(self.client.get(reverse('inicio')), 'Hola, prueba')
         self.assertRedirects(self.client.post(reverse('logout')), reverse('login'))
+
+    def test_menu_usuario_muestra_nombre_correo_y_salida(self) -> None:
+        usuario = get_user_model().objects.create_user(
+            username='operador', first_name='Rodrigo', last_name='Neira', email='operador@example.com'
+        )
+        self.client.force_login(usuario)
+        respuesta = self.client.get(reverse('inicio'))
+        self.assertContains(respuesta, 'Menú de usuario')
+        self.assertContains(respuesta, 'Rodrigo Neira')
+        self.assertContains(respuesta, 'operador@example.com')
+        self.assertContains(respuesta, 'Salir')
+        self.assertContains(respuesta, 'csrfmiddlewaretoken')
