@@ -1,16 +1,18 @@
 import json
 from datetime import datetime, timedelta, timezone as dt_timezone
 from io import BytesIO
+from threading import Event, Thread
 from unittest.mock import MagicMock, patch
 
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Permission
 from django.core.cache import cache
-from django.test import TestCase, override_settings
+from django.db import connections
+from django.test import TestCase, TransactionTestCase, override_settings
 from django.urls import reverse
 from openpyxl import load_workbook
 from .models import Pedido, Sincronizacion
-from .services import AnyMarketError, consultar_pedidos, guardar_pedido, sincronizar
+from .services import AnyMarketError, consultar_pedidos, guardar_pedido, reconciliar, sincronizar
 
 
 def pedido(identificador: int, estado: str, fecha: str = '2026-10-27T12:00:00Z') -> dict:
@@ -54,6 +56,67 @@ class ImportacionTests(TestCase):
         self.assertEqual(Pedido.objects.get().estado, 'CANCELED')
         self.assertEqual(Sincronizacion.objects.get().actualizado_hasta, ahora)
 
+    def test_lotes_confirmados_se_reprocesan_sin_duplicados_tras_error(self) -> None:
+        ahora = datetime(2026, 10, 28, tzinfo=dt_timezone.utc)
+        inicio = ahora - timedelta(hours=1)
+        Sincronizacion.objects.create(clave='pedidos', actualizado_hasta=inicio)
+
+        def fallar(_filtros: dict):
+            for identificador in range(1, 101):
+                yield pedido(identificador, 'PAID_WAITING_SHIP')
+            raise AnyMarketError('fallo de prueba')
+
+        with patch('modulo.anymarket.services.timezone.now', return_value=ahora), patch(
+            'modulo.anymarket.services.consultar_pedidos', side_effect=fallar
+        ), self.assertRaises(AnyMarketError):
+            sincronizar()
+        control = Sincronizacion.objects.get(clave='pedidos')
+        self.assertEqual(control.actualizado_hasta, inicio)
+        self.assertTrue(control.ultimo_error)
+        self.assertEqual(Pedido.objects.count(), 100)
+        with patch('modulo.anymarket.services.timezone.now', return_value=ahora), patch(
+            'modulo.anymarket.services.consultar_pedidos', return_value=[pedido(i, 'PAID_WAITING_SHIP') for i in range(1, 101)]
+        ):
+            sincronizar()
+        control.refresh_from_db()
+        self.assertEqual(Pedido.objects.count(), 100)
+        self.assertEqual(control.actualizado_hasta, ahora)
+        self.assertEqual(control.ultimo_error, '')
+        self.assertEqual(control.ultimo_exito, ahora)
+
+    def test_reconciliacion_actualiza_pedidos_antiguos_sin_avanzar_checkpoint(self) -> None:
+        ahora = datetime(2026, 11, 20, tzinfo=dt_timezone.utc)
+        previo = ahora - timedelta(hours=2)
+        Sincronizacion.objects.create(clave='pedidos', actualizado_hasta=previo)
+        Pedido.objects.create(anymarket_id=1, creado_en=ahora, estado='PAID_WAITING_SHIP', datos={})
+        with patch('modulo.anymarket.services.timezone.now', return_value=ahora), patch(
+            'modulo.anymarket.services.consultar_pedidos', return_value=[pedido(1, 'CANCELED')]
+        ) as consulta:
+            reconciliar()
+        self.assertEqual(consulta.call_count, 2)
+        self.assertIn('updatedAfter', consulta.call_args_list[0].args[0])
+        self.assertEqual(Pedido.objects.get().estado, 'CANCELED')
+        self.assertEqual(Sincronizacion.objects.get(clave='pedidos').actualizado_hasta, previo)
+        self.assertEqual(Sincronizacion.objects.get(clave='reconciliacion').ultimo_exito, ahora)
+
+    def test_carga_inicial_reanuda_intervalo_completado(self) -> None:
+        ahora = datetime(2027, 5, 1, tzinfo=dt_timezone.utc)
+        with patch('modulo.anymarket.services.timezone.now', return_value=ahora), patch(
+            'modulo.anymarket.services.consultar_pedidos', side_effect=[[], AnyMarketError('error')]
+        ), self.assertRaises(AnyMarketError):
+            sincronizar()
+        control = Sincronizacion.objects.get(clave='pedidos')
+        self.assertIsNone(control.actualizado_hasta)
+        self.assertIsNotNone(control.carga_inicial_hasta)
+        cursor = control.carga_inicial_hasta
+        with patch('modulo.anymarket.services.timezone.now', return_value=ahora), patch(
+            'modulo.anymarket.services.consultar_pedidos', return_value=[]
+        ) as consulta:
+            sincronizar()
+        self.assertEqual(consulta.call_args_list[0].args[0]['createdAfter'], cursor.isoformat())
+        control.refresh_from_db()
+        self.assertEqual(control.actualizado_hasta, ahora)
+
     @override_settings(ANYMARKET_TOKEN='test', ANYMARKET_PLATFORM='INET', ANYMARKET_ENVIRONMENT='sandbox')
     def test_paginacion_y_cabeceras(self) -> None:
         paginas = [
@@ -77,6 +140,35 @@ class ImportacionTests(TestCase):
             opener.return_value.open.return_value = BytesIO(json.dumps(pagina).encode())
             self.assertEqual(len(list(consultar_pedidos({}))), 1)
             self.assertEqual(opener.return_value.open.call_count, 1)
+
+
+class BloqueoSincronizacionTests(TransactionTestCase):
+    def test_otro_proceso_impide_sincronizacion_y_reconciliacion_reintenta(self) -> None:
+        listo, liberar = Event(), Event()
+
+        def mantener_bloqueo() -> None:
+            conexion = connections['default']
+            try:
+                with conexion.cursor() as cursor:
+                    cursor.execute('SELECT pg_advisory_lock(%s)', [731984601241])
+                    listo.set()
+                    liberar.wait(timeout=10)
+                    cursor.execute('SELECT pg_advisory_unlock(%s)', [731984601241])
+            finally:
+                conexion.close()
+
+        hilo = Thread(target=mantener_bloqueo)
+        hilo.start()
+        try:
+            self.assertTrue(listo.wait(timeout=5))
+            with patch('modulo.anymarket.services.consultar_pedidos') as consulta:
+                sincronizar()
+                with self.assertRaises(AnyMarketError):
+                    reconciliar()
+                consulta.assert_not_called()
+        finally:
+            liberar.set()
+            hilo.join(timeout=10)
 
 
 @override_settings(STORAGES={
@@ -123,6 +215,31 @@ class PedidosVistaTests(TestCase):
         self.usuario.user_permissions.add(Permission.objects.get(codename='view_pedido', content_type__app_label='anymarket'))
         self.client.force_login(self.usuario)
         self.assertContains(self.client.get(self.url), 'No hay pedidos que coincidan con los filtros.')
+
+    def test_muestra_exito_y_error_de_las_sincronizaciones(self) -> None:
+        self.usuario.user_permissions.add(Permission.objects.get(codename='view_pedido', content_type__app_label='anymarket'))
+        self.client.force_login(self.usuario)
+        fecha = datetime(2026, 10, 27, 4, tzinfo=dt_timezone.utc)
+        Sincronizacion.objects.create(clave='pedidos', ultimo_exito=fecha)
+        Sincronizacion.objects.create(clave='reconciliacion', ultimo_error='Error de prueba', ultimo_error_en=fecha)
+        respuesta = self.client.get(self.url)
+        self.assertContains(respuesta, 'Última sincronización correcta:')
+        self.assertContains(respuesta, '27/10/2026 01:00:00')
+        self.assertContains(respuesta, 'Error de prueba')
+
+    def test_estado_fullfillment_en_listado_y_excel(self) -> None:
+        self.usuario.user_permissions.add(Permission.objects.get(codename='view_pedido', content_type__app_label='anymarket'))
+        self.client.force_login(self.usuario)
+        for numero, valor in enumerate((True, False, None, 'true'), start=1):
+            Pedido.objects.create(anymarket_id=numero, creado_en=datetime(2026, 10, 27, tzinfo=dt_timezone.utc),
+                                  estado='PAID_WAITING_SHIP', datos={'fulfillment': valor})
+        respuesta = self.client.get(self.url)
+        self.assertContains(respuesta, 'FullFillment', count=1)
+        exportacion = self.client.get(reverse('anymarket:exportar_pedidos'))
+        libro = load_workbook(BytesIO(b''.join(exportacion.streaming_content)), read_only=True)
+        valores = [fila[7] for fila in list(libro.active.values)[1:]]
+        self.assertEqual(valores.count('FullFillment'), 1)
+        self.assertTrue(all(valor in ('FullFillment', None) for valor in valores))
 
     @patch('modulo.anymarket.views.sincronizar_pedidos.apply_async')
     def test_sincronizacion_manual_requiere_permiso_y_limita_solicitudes(self, encolar: MagicMock) -> None:

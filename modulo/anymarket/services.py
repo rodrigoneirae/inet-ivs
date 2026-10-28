@@ -9,7 +9,7 @@ from zoneinfo import ZoneInfo
 
 from django.conf import settings
 from django.core.exceptions import ImproperlyConfigured
-from django.db import transaction
+from django.db import connection, transaction
 from django.utils import timezone
 from django.utils.dateparse import parse_datetime
 
@@ -92,35 +92,86 @@ def guardar_pedido(datos: dict[str, Any], inicio: datetime) -> None:
         )
 
 
-def sincronizar() -> None:
-    inicio = timezone.make_aware(datetime.combine(INICIO.date(), time.min), ZoneInfo(settings.ANYMARKET_TIME_ZONE))
-    # A persistent lock prevents overlapping tasks and stale updates to the checkpoint.
-    Sincronizacion.objects.get_or_create(clave='pedidos')
-    with transaction.atomic():
-        control = Sincronizacion.objects.select_for_update(skip_locked=True).filter(clave='pedidos').first()
-        if control is None:
-            logger.info('Sincronización AnyMarket ya en ejecución.')
-            return
-        ahora = timezone.now()
-        if control.actualizado_hasta is None:
-            cursor = inicio
-            while cursor < ahora:
-                fin = min(cursor + timedelta(days=119), ahora)
-                filtros = {'createdAfter': cursor.isoformat(), 'createdBefore': fin.isoformat(), 'status': PAGADO}
-                for pedido in consultar_pedidos(filtros):
+def procesar_bloques(filtros: dict[str, str], inicio: datetime) -> None:
+    lote: list[dict[str, Any]] = []
+    for datos in consultar_pedidos(filtros):
+        lote.append(datos)
+        if len(lote) == 100:
+            with transaction.atomic():
+                for pedido in lote:
                     guardar_pedido(pedido, inicio)
-                cursor = fin
-            # Capture updates that happened while the initial scan was running.
-            control.actualizado_hasta = ahora - timedelta(minutes=5)
-            control.save(update_fields=['actualizado_hasta'])
-            return
-        cursor = control.actualizado_hasta - timedelta(minutes=5)
-        while cursor < ahora:
-            fin = min(cursor + timedelta(days=6), ahora)
-            filtros = {'updatedAfter': cursor.isoformat(), 'updatedBefore': fin.isoformat()}
-            for pedido in consultar_pedidos(filtros):
+            lote.clear()
+    if lote:
+        with transaction.atomic():
+            for pedido in lote:
                 guardar_pedido(pedido, inicio)
-            cursor = fin
-        control.actualizado_hasta = ahora
-        control.save(update_fields=['actualizado_hasta'])
-    logger.info('Sincronización de pedidos AnyMarket completada.')
+
+
+def ejecutar_sincronizacion(reconciliacion: bool = False) -> None:
+    inicio = timezone.make_aware(datetime.combine(INICIO.date(), time.min), ZoneInfo(settings.ANYMARKET_TIME_ZONE))
+    # PostgreSQL session lock covers all runs without holding an open transaction over HTTP.
+    with connection.cursor() as db:
+        db.execute('SELECT pg_try_advisory_lock(%s)', [731984601241])
+        adquirido = db.fetchone()[0]
+    if not adquirido:
+        logger.info('Sincronización AnyMarket omitida: otra ejecución está activa.')
+        if reconciliacion:
+            raise AnyMarketError('Otra sincronización está activa; reintentar reconciliación.')
+        return
+    try:
+        clave = 'reconciliacion' if reconciliacion else 'pedidos'
+        control, _ = Sincronizacion.objects.get_or_create(clave=clave)
+        ahora = timezone.now()
+        control.ultimo_inicio = ahora
+        control.save(update_fields=['ultimo_inicio'])
+        try:
+            if reconciliacion:
+                cursor = max(inicio, ahora - timedelta(days=7))
+                while cursor < ahora:
+                    fin = min(cursor + timedelta(days=6), ahora)
+                    procesar_bloques({'updatedAfter': cursor.isoformat(), 'updatedBefore': fin.isoformat()}, inicio)
+                    cursor = fin
+            else:
+                if control.actualizado_hasta is None:
+                    if control.carga_inicial_inicio is None:
+                        control.carga_inicial_inicio = ahora
+                        control.carga_inicial_hasta = inicio
+                        control.save(update_fields=['carga_inicial_inicio', 'carga_inicial_hasta'])
+                    cursor = control.carga_inicial_hasta or inicio
+                    while cursor < control.carga_inicial_inicio:
+                        fin = min(cursor + timedelta(days=119), control.carga_inicial_inicio)
+                        procesar_bloques({'createdAfter': cursor.isoformat(), 'createdBefore': fin.isoformat(),
+                                          'status': PAGADO}, inicio)
+                        control.carga_inicial_hasta = fin
+                        control.save(update_fields=['carga_inicial_hasta'])
+                        cursor = fin
+                    control.actualizado_hasta = control.carga_inicial_inicio - timedelta(minutes=5)
+                    control.save(update_fields=['actualizado_hasta'])
+                cursor = control.actualizado_hasta - timedelta(minutes=5)
+                while cursor < ahora:
+                    fin = min(cursor + timedelta(days=6), ahora)
+                    procesar_bloques({'updatedAfter': cursor.isoformat(), 'updatedBefore': fin.isoformat()}, inicio)
+                    control.actualizado_hasta = fin
+                    control.save(update_fields=['actualizado_hasta'])
+                    cursor = fin
+            control.ultimo_exito = timezone.now()
+            control.ultimo_error = ''
+            control.save(update_fields=['ultimo_exito', 'ultimo_error'])
+            logger.info('Proceso AnyMarket %s completado.', clave)
+        except Exception as exc:
+            control.ultimo_error_en = timezone.now()
+            control.ultimo_error = 'No se pudo completar la consulta o el procesamiento de AnyMarket.'
+            control.save(update_fields=['ultimo_error_en', 'ultimo_error'])
+            logger.error('Falló el proceso AnyMarket %s (%s).', clave, type(exc).__name__)
+            raise
+    finally:
+        with connection.cursor() as db:
+            db.execute('SELECT pg_advisory_unlock(%s)', [731984601241])
+
+
+def sincronizar() -> None:
+    ejecutar_sincronizacion()
+
+
+def reconciliar() -> None:
+    ejecutar_sincronizacion(reconciliacion=True)

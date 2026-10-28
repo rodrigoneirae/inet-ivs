@@ -4,7 +4,7 @@
     const fallback = document.querySelector('#pedidos-respaldo');
     if (!table || !target || !fallback || typeof Tabulator === 'undefined') return;
 
-    const fields = ['canal', 'pedido', 'cliente', 'fecha', 'items', 'total', 'estado'];
+    const fields = ['canal', 'pedido', 'cliente', 'fecha', 'items', 'total', 'estado', 'fulfillment'];
     const rows = Array.from(table.tBodies[0].rows, (row) =>
         Object.fromEntries(fields.map((field, index) => [field, row.cells[index].textContent.trim()]))
     );
@@ -66,6 +66,7 @@
                 {title: titulo('Venta', 'total'), field: 'total', minWidth: 100, hozAlign: 'right'},
                 {title: titulo('Status', 'estado'), field: 'estado', minWidth: 170,
                     headerFilter: filtro('estado', 'filtro-estados', 'status'), headerFilterFunc: () => true},
+                {title: titulo('Estado', 'fulfillment'), field: 'fulfillment', minWidth: 140},
             ],
         });
         tabulator.on('tableBuilt', () => {

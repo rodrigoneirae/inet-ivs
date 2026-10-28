@@ -21,7 +21,7 @@ from openpyxl import Workbook
 from openpyxl.cell import WriteOnlyCell
 from openpyxl.cell.cell import ILLEGAL_CHARACTERS_RE
 
-from .models import Pedido
+from .models import Pedido, Sincronizacion
 from .forms import FiltrosPedidosForm
 from .tasks import sincronizar_pedidos
 
@@ -37,6 +37,7 @@ def consulta_pedidos(request: HttpRequest) -> tuple[QuerySet, FiltrosPedidosForm
         'total': 'datos__total',
         'cliente': 'datos__buyer__name',
         'items': 'cantidad_items',
+        'fulfillment': 'datos__fulfillment',
     }
     orden = request.GET.get('orden', 'fecha')
     if orden not in columnas:
@@ -125,6 +126,8 @@ def pedidos(request: HttpRequest) -> HttpResponse:
         'filtros': filtros,
         'parametros': params.urlencode(),
         'tamano': tamano,
+        'estado_sincronizacion': Sincronizacion.objects.filter(clave='pedidos').first(),
+        'estado_reconciliacion': Sincronizacion.objects.filter(clave='reconciliacion').first(),
         'canales': list(Pedido.objects.exclude(datos__marketPlace__isnull=True)
                         .values_list('datos__marketPlace', flat=True).distinct().order_by('datos__marketPlace')[:200]),
         'estados': list(Pedido.objects.exclude(datos__marketPlaceStatus__isnull=True)
@@ -165,7 +168,7 @@ def exportar_pedidos(request: HttpRequest) -> HttpResponse:
         return HttpResponseBadRequest('La exportación supera 50000 pedidos; acota los filtros.')
     libro = Workbook(write_only=True)
     hoja = libro.create_sheet('Órdenes')
-    hoja.append(['Canal', 'OC', 'Cliente', 'Fecha', 'Ítems', 'Venta', 'Status'])
+    hoja.append(['Canal', 'OC', 'Cliente', 'Fecha', 'Ítems', 'Venta', 'Status', 'Estado'])
     zona = ZoneInfo(settings.ANYMARKET_TIME_ZONE)
     for pedido in queryset.iterator(chunk_size=500):
         datos = pedido.datos
@@ -176,7 +179,8 @@ def exportar_pedidos(request: HttpRequest) -> HttpResponse:
                      'c52434-09': 'YAKU'}.get(canal.lower(), canal)
         valores = [canal, pedido.numero_mercado, cliente.get('name'),
                    timezone.localtime(pedido.creado_en, zona).strftime('%d-%m-%Y %H:%M:%S'),
-                   pedido.cantidad_items, datos.get('total'), datos.get('marketPlaceStatus')]
+                   pedido.cantidad_items, datos.get('total'), datos.get('marketPlaceStatus'),
+                   'FullFillment' if datos.get('fulfillment') is True else '']
         fila = []
         for valor in valores:
             if isinstance(valor, str):

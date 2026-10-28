@@ -13,6 +13,7 @@ https://docs.djangoproject.com/en/6.1/ref/settings/
 import os
 from pathlib import Path
 
+from celery.schedules import crontab
 from django.core.exceptions import ImproperlyConfigured
 from dotenv import load_dotenv
 
@@ -127,6 +128,10 @@ if ANYMARKET_ENABLED:
     CELERY_BEAT_SCHEDULE['sincronizar-pedidos-anymarket'] = {
         'task': 'modulo.anymarket.tasks.sincronizar_pedidos',
         'schedule': 60.0,
+    }
+    CELERY_BEAT_SCHEDULE['reconciliar-pedidos-anymarket'] = {
+        'task': 'modulo.anymarket.tasks.reconciliar_pedidos',
+        'schedule': crontab(hour=3, minute=0),
     }
 
 
