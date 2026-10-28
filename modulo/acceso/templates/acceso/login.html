@@ -1,0 +1,18 @@
+{% extends 'base.html' %}
+{% block title %}Iniciar sesión | INET IVS{% endblock %}
+{% block content %}
+<main class="flex min-h-screen items-center justify-center bg-slate-50 px-4 py-12 dark:bg-slate-900">
+  <div class="w-full max-w-md">
+    <div class="mb-8 text-center"><div class="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-blue-600 text-xl font-bold text-white">IVS</div><h1 class="text-3xl font-bold text-slate-900 dark:text-white">Bienvenido a INET IVS</h1><p class="mt-2 text-sm text-slate-600 dark:text-slate-300">Ingresa con tu usuario y contraseña de IVS SAT.</p></div>
+    <div class="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8 dark:border-slate-700 dark:bg-slate-800">
+      <h2 class="text-xl font-semibold dark:text-white">Iniciar sesión</h2>
+      {% if form.errors %}<div role="alert" class="mt-5 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-800 dark:border-red-800 dark:bg-red-950 dark:text-red-200">No fue posible iniciar sesión. Verifica tus credenciales e inténtalo nuevamente.</div>{% endif %}
+      <form method="post" class="mt-6 space-y-5">{% csrf_token %}
+        <div><label for="id_username" class="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-200">Usuario</label><input id="id_username" name="username" type="text" value="{{ form.username.value|default:'' }}" autocomplete="username" required autofocus maxlength="150" class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-slate-900 focus:outline-2 focus:outline-offset-2 focus:outline-blue-600 dark:border-slate-600 dark:bg-slate-900 dark:text-white"></div>
+        <div><label for="id_password" class="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-200">Contraseña</label><input id="id_password" name="password" type="password" autocomplete="current-password" required class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-slate-900 focus:outline-2 focus:outline-offset-2 focus:outline-blue-600 dark:border-slate-600 dark:bg-slate-900 dark:text-white"></div>
+        <input type="hidden" name="next" value="{{ next }}"><button type="submit" class="w-full rounded-lg bg-blue-600 px-4 py-3 text-sm font-semibold text-white hover:bg-blue-700 focus:outline-2 focus:outline-offset-2 focus:outline-blue-600">Ingresar</button>
+      </form>
+    </div>
+  </div>
+</main>
+{% endblock %}

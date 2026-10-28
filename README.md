@@ -13,7 +13,13 @@ python manage.py migrate
 uvicorn inet_ivs.asgi:application --host 127.0.0.1 --port 8000 --reload
 ```
 
-Abre `http://127.0.0.1:8000/admin/`. Para crear un administrador, ejecuta `python manage.py createsuperuser` en otra terminal con `.venv` activado.
+Abre `http://127.0.0.1:8000/` para iniciar sesión con un usuario de IVS SAT.
+
+### Usuarios y acceso
+
+Configura la conexión `ivs_sat` y aplica las migraciones locales con `python manage.py migrate`. Para importar inicialmente los usuarios, ejecuta `python manage.py sincronizar_usuarios_ivs`. Celery Beat programa una sincronización cada hora; deben estar funcionando tanto Beat como el worker. El ingreso también consulta IVS SAT y sincroniza la cuenta inmediatamente, por lo que requiere que la base de origen esté disponible. Las contraseñas se guardan localmente como hashes de Django; en la base de origen permanecen como están.
+
+Los registros sin contraseña, con nombres duplicados o que coincidan con una cuenta local no vinculada se omiten. Revisa y corrige estos casos en el sistema de origen antes de utilizarlos. La sincronización no borra cuentas locales; una cuenta eliminada del origen no puede iniciar sesión de nuevo. Las sesiones existentes no se cierran automáticamente cuando se elimina una cuenta del origen. El backend de acceso acepta únicamente usuarios de IVS SAT, también para `/admin/`: `createsuperuser` por sí solo no habilita el ingreso. Los permisos administrativos deben asignarse explícitamente a un usuario importado.
 
 La base principal predeterminada es PostgreSQL `inet-ivs` en `192.168.0.8`. En desarrollo, Django carga las credenciales de `.env.dev` automáticamente; las variables de entorno ya definidas tienen prioridad. No se carga ese archivo cuando `DJANGO_DEBUG=False` está definido en el entorno. Redis debe estar ejecutándose en `localhost:6379` para la capa de Channels; comprueba su disponibilidad con `redis-cli ping`. Para utilizar otra dirección, define la variable `REDIS_URL` antes de iniciar Uvicorn.
 
@@ -29,7 +35,7 @@ Configura las variables de entorno antes de iniciar cada proceso de Django, Uvic
 
 Los puertos predeterminados son 5432 y 1433. Las conexiones secundarias se habilitan al definir `IVS_SAT_USER` y `SQLSERVER_DB`, respectivamente. La base principal usa por defecto `inet-ivs` en `192.168.0.8`; configura `POSTGRES_USER` y `POSTGRES_PASSWORD` y, si corresponde, cambia `POSTGRES_DB` y `POSTGRES_HOST`. El nombre `IVS_SAT` respeta mayúsculas. SQL Server utiliza `mssql-django` y `mssql-python`, que incluye el controlador ODBC 18; el servidor debe disponer de un certificado confiable válido para el host configurado. Consulta los requisitos de sistema de [mssql-python](https://github.com/microsoft/mssql-python#installation).
 
-Consulta las bases secundarias explícitamente con `Modelo.objects.using('ivs_sat')` o `Modelo.objects.using('sqlserver')`, o mediante `django.db.connections` para SQL parametrizado. El router impide aplicar operaciones de migración de modelos en esos dos alias; no ejecutes `migrate --database` sobre ellos, ya que Django podría crear su tabla de registro de migraciones. Usa cuentas con los permisos mínimos necesarios. No hay modelos ni consultas de negocio configurados todavía.
+Consulta las bases secundarias explícitamente con `Modelo.objects.using('ivs_sat')` o `Modelo.objects.using('sqlserver')`, o mediante `django.db.connections` para SQL parametrizado. El router impide aplicar operaciones de migración de modelos en esos dos alias; no ejecutes `migrate --database` sobre ellos, ya que Django podría crear su tabla de registro de migraciones. Usa cuentas con los permisos mínimos necesarios. La cuenta de IVS SAT requiere lectura de `public.ivs_sysusuarios`.
 
 En Compose, `POSTGRES_HOST` permite seleccionar el servidor externo; el servicio local `db` sigue existiendo y no contiene automáticamente los datos de ese servidor. **El servicio `web` ejecuta `migrate` automáticamente contra `default` al iniciar**: verifica nombre, permisos y respaldo antes de apuntarlo a una base existente. Cambiar de SQLite o del PostgreSQL local a otro servidor no transfiere datos.
 
@@ -67,7 +73,7 @@ Inicia solo una instancia de Beat para evitar duplicar tareas programadas. El ar
 
 ## Tareas y programación
 
-Define tareas con `@shared_task` en `tasks.py` dentro de una aplicación de Django incluida en `INSTALLED_APPS`. Envíalas con `nombre_de_tarea.delay(...)`. Define la programación en `CELERY_BEAT_SCHEDULE` de `inet_ivs/settings.py`; inicialmente está vacía porque aún no hay tareas de negocio. Para configurar la zona horaria, usa `DJANGO_TIME_ZONE` (por defecto `UTC`).
+Define tareas con `@shared_task` en `tasks.py` dentro de una aplicación de Django incluida en `INSTALLED_APPS`. Envíalas con `nombre_de_tarea.delay(...)`. Define la programación en `CELERY_BEAT_SCHEDULE` de `inet_ivs/settings.py`. Para configurar la zona horaria, usa `DJANGO_TIME_ZONE` (por defecto `UTC`).
 
 Channels usa la base Redis 0, Celery usa la 1 como cola y la 2 para resultados. El Redis de Compose mantiene los datos en un volumen con AOF; esto no reemplaza los respaldos ni garantiza por sí solo la ejecución exacta de cada tarea. El planificador de Beat mantiene su estado en otro volumen y debe ejecutarse como una sola instancia. No hay administración de horarios desde Django Admin: el programador integrado usa la configuración del código.
 
@@ -85,10 +91,10 @@ Channels usa la base Redis 0, Celery usa la 1 como cola y la 2 para resultados. 
    docker compose --env-file .env.dev -p inet-ivs-dev -f docker-compose.yml -f compose.local.yml up --build
    ```
 
-3. Abre `http://localhost:8000/admin/`. Crea un administrador desde otra terminal:
+3. Abre `http://localhost:8000/`. Para importar los usuarios desde otra terminal:
 
    ```bash
-   docker compose --env-file .env.dev -p inet-ivs-dev -f docker-compose.yml -f compose.local.yml exec web python manage.py createsuperuser
+   docker compose --env-file .env.dev -p inet-ivs-dev -f docker-compose.yml -f compose.local.yml exec web python manage.py sincronizar_usuarios_ivs
    ```
 
 Los archivos se montan desde el equipo y Uvicorn recarga el código Python al cambiarlo. Si cambias `requirements.txt`, reconstruye con `up --build`. Para crear migraciones, usa el mismo comando `docker compose ... exec web python manage.py makemigrations`.
@@ -109,7 +115,7 @@ La base se conserva en el volumen local del proyecto Compose. La base SQLite loc
 2. Crea un servicio **Compose** en Dockploy y conecta el repositorio y la rama. Selecciona `docker-compose.yml`; no incluyas `compose.local.yml`.
 3. Configura en las variables del servicio Compose los valores de `.env.example`. Usa una clave y contraseña nuevas, `DJANGO_DEBUG=False`, el dominio en `DJANGO_ALLOWED_HOSTS` y `https://tu-dominio` en `DJANGO_CSRF_TRUSTED_ORIGINS`.
 4. Configura el dominio para el servicio `web` y su puerto interno `8000`. Si usas Cloudflare Tunnel con destino HTTP al proxy de Dockploy, configura el dominio HTTP en Dockploy y HTTPS en Cloudflare. Despliega y revisa los logs de `web`, `worker` y `beat`.
-5. En la terminal del contenedor `web`, ejecuta `python manage.py createsuperuser`.
+5. En la terminal del contenedor `web`, ejecuta `python manage.py sincronizar_usuarios_ivs` para realizar la importación inicial.
 
 Las migraciones y la recopilación de estáticos se ejecutan al iniciar `web`. Conserva el volumen y las credenciales de PostgreSQL entre despliegues; cambiar las variables de inicialización no cambia la contraseña de una base ya creada. El contenedor confía en las cabeceras del proxy: no publiques su puerto directamente en producción, y usa un proxy confiable que las sobrescriba.
 

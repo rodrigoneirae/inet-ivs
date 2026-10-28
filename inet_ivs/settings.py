@@ -56,6 +56,7 @@ INSTALLED_APPS = [
     'channels',
     'tailwind',
     'theme',
+    'modulo.acceso',
 ]
 
 TAILWIND_APP_NAME = 'theme'
@@ -109,7 +110,12 @@ CELERY_RESULT_SERIALIZER = 'json'
 CELERY_TIMEZONE = os.environ.get('DJANGO_TIME_ZONE', 'UTC')
 CELERY_BROKER_CONNECTION_RETRY_ON_STARTUP = True
 CELERY_WORKER_CONCURRENCY = int(os.environ.get('CELERY_WORKER_CONCURRENCY', '2'))
-CELERY_BEAT_SCHEDULE = {}
+CELERY_BEAT_SCHEDULE = {
+    'sincronizar-usuarios-ivs': {
+        'task': 'modulo.acceso.tasks.sincronizar_usuarios_ivs',
+        'schedule': 3600.0,
+    },
+}
 
 
 # Database
@@ -154,6 +160,11 @@ if os.environ.get('SQLSERVER_DB'):
     }
 
 DATABASE_ROUTERS = ['inet_ivs.db_router.ExternalDatabaseRouter']
+
+AUTHENTICATION_BACKENDS = ['modulo.acceso.backends.IVSBackend']
+LOGIN_URL = 'login'
+LOGIN_REDIRECT_URL = 'inicio'
+LOGOUT_REDIRECT_URL = 'login'
 
 
 # Password validation

@@ -10,6 +10,16 @@ Estas reglas se aplican a todo el repositorio y a cualquier código generado o m
 - Usa las capacidades de Django y las dependencias existentes antes de añadir bibliotecas. Justifica dependencias nuevas y comprueba compatibilidad y mantenimiento.
 - No introduzcas cambios ajenos a la tarea. Conserva la compatibilidad existente salvo que se solicite lo contrario.
 
+## Diseño e interfaz
+
+- Diseña siempre interfaces responsivas, adaptadas a móviles, tabletas y escritorio. Comprueba la navegación, los formularios y las tablas en distintos tamaños de pantalla.
+- Usa Tailwind CSS para los estilos y mantén un sistema de colores coherente con temas claro y oscuro. Como paleta inicial, usa azul `#2563EB` para acciones principales, verde `#16A34A` para éxito, ámbar `#D97706` para advertencias y rojo `#DC2626` para errores; en el tema claro usa fondo `#F8FAFC`, superficies `#FFFFFF` y texto `#0F172A`, y en el oscuro fondo `#0F172A`, superficies `#1E293B` y texto `#F8FAFC`. Ajusta los tonos cuando sea necesario para garantizar contraste y legibilidad.
+- Organiza la interfaz principal como un dashboard con menú lateral y menú superior. En pantallas pequeñas, adapta el menú lateral para que sea accesible sin ocultar el contenido principal.
+- Separa la lógica JavaScript del HTML: utiliza archivos JavaScript independientes y evita scripts y manejadores de eventos en línea. No uses jQuery; emplea JavaScript nativo y las capacidades disponibles del proyecto.
+- Usa Tabulator para las tablas de datos, con presentación responsiva y paginación apropiada para el volumen de información. Integra sus estilos con los temas claro y oscuro.
+- Usa notificaciones tipo toast para comunicar resultados y errores; nunca uses `alert()`. Garantiza que las notificaciones sean accesibles y legibles en ambos temas.
+- Mantén accesibilidad mediante HTML semántico, navegación por teclado, estados de foco visibles y contraste adecuado. No dependas únicamente del color para transmitir información.
+
 ## Identificadores y URL
 
 - Nunca expongas identificadores enteros de registros en URL nuevas, incluidas rutas de administración, API, archivos y WebSockets propios. Usa UUID como identificador público, tanto en rutas como en enlaces, redirecciones y referencias públicas relacionadas.
