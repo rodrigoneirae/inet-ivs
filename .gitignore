@@ -11,3 +11,4 @@ celerybeat-schedule*
 db.sqlite3
 staticfiles/
 theme/static/css/dist/
+/.fuse_hidden*
