@@ -1,5 +1,5 @@
 # inet-ivs
-
+hola
 Proyecto Django preparado para ASGI, Channels, Celery, Redis y PostgreSQL. Docker Compose ejecuta Django y Channels en `web`, las tareas en `worker`, el planificador en `beat`, PostgreSQL en `db` y Redis en `redis`.
 
 ## Desarrollo local sin Docker
