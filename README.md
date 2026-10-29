@@ -4,7 +4,7 @@ Proyecto Django preparado para ASGI, Channels, Celery, Redis y PostgreSQL. Docke
 
 ## Desarrollo web con Django y Astro
 
-`frontend/` contiene una primera interfaz Astro estática que consulta la API de Django por el mismo origen. Incluye inicio y cierre de sesión, pedidos con Tabulator, filtros, paginación, exportación y solicitud de sincronización. La interfaz y la integración deben verificarse con datos reales y en los dispositivos antes de sustituir las pantallas Django existentes. Los endpoints Django y sus plantillas siguen disponibles.
+`frontend/` contiene la interfaz Astro estática que consulta la API de Django por el mismo origen. Incluye inicio y cierre de sesión, pedidos con Tabulator, filtros, paginación, exportación y solicitud de sincronización. Django Admin conserva sus propias plantillas en `/admin/`.
 
 Por ahora el desarrollo se centra en Django y Astro. Para ejecutar Astro con Django en `127.0.0.1:8000`:
 
@@ -22,7 +22,15 @@ Abre `http://127.0.0.1:4321/`. Astro mantiene ese puerto fijo y su proxy de desa
 
 La interfaz Astro se compila como archivos estáticos y usa rutas relativas `/api/`; Django conserva sesiones, CSRF, permisos y validación en el servidor. En el despliegue web, Nginx sirve ambos bajo el mismo origen. Estas decisiones mantienen la interfaz desacoplada de funciones nativas mientras se desarrolla y permiten evaluar su reutilización en futuros clientes.
 
-`frontend/src-tauri/` es una base experimental conservada para una etapa posterior. Actualmente apunta a `https://example.invalid` y plantea cargar la interfaz remota; no hay aplicaciones listas para distribuir. Antes de compilar para Linux, Windows, macOS, Android o iOS habrá que definir y verificar el mecanismo de carga, autenticación, cookies, CSRF, navegación y descargas en cada plataforma. También habrá que generar los proyectos móviles y configurar firma y publicación; iOS y macOS requieren macOS con Xcode. Por ahora no es necesario instalar Rust ni las herramientas de Tauri para trabajar en la web.
+`frontend/src-tauri/` es una base experimental. La configuración predeterminada apunta a `https://example.invalid`; para una prueba Linux con la interfaz remota, ejecuta desde `frontend/`:
+
+```bash
+source "$HOME/.cargo/env"
+npm run tauri -- build --debug --no-bundle --config '{"app":{"windows":[{"title":"INET IVS","url":"https://inet-ivs.inversierra.cl/","width":1280,"height":800}]}}'
+./src-tauri/target/debug/inet-ivs
+```
+
+Esta compilación Linux de depuración se ha verificado, pero la autenticación, cookies, CSRF, navegación y descargas aún deben probarse en la ventana Tauri. La URL de prueba se incluye en el ejecutable; no contiene credenciales. La aplicación depende de la disponibilidad del sitio remoto. Antes de distribuir en Linux, Windows, macOS, Android o iOS hay que validar cada plataforma y su proceso de empaquetado y firma; los proyectos móviles todavía deben generarse. iOS y macOS requieren macOS con Xcode. No es necesario instalar Rust ni las herramientas de Tauri para trabajar únicamente en la web.
 
 Inicia Django, PostgreSQL, IVS SAT y Redis. La API utiliza Redis para limitar intentos de acceso; si hay varias instancias web deben compartir Redis. El límite usa `REMOTE_ADDR`: configura el proxy de modo que Django reciba la dirección correcta o aplica un límite equivalente en el proxy; de otro modo todos los clientes detrás del proxy compartirán el límite. Publica Django mediante HTTPS con certificado válido y configura `DJANGO_ALLOWED_HOSTS` para el dominio.
 
@@ -37,7 +45,7 @@ python manage.py migrate
 uvicorn inet_ivs.asgi:application --host 127.0.0.1 --port 8000 --reload
 ```
 
-Abre `http://127.0.0.1:8000/` para iniciar sesión con un usuario de IVS SAT.
+Inicia también Astro como se explica arriba y abre `http://127.0.0.1:4321/` para iniciar sesión con un usuario de IVS SAT. Django Admin está disponible en `http://127.0.0.1:8000/admin/`.
 
 ### Usuarios y acceso
 
@@ -65,24 +73,6 @@ En Compose, `POSTGRES_HOST` permite seleccionar el servidor externo; el servicio
 
 Uvicorn ejecuta ASGI, necesario para WebSockets. Django `runserver` no utiliza el enrutador ASGI de Channels con esta configuración.
 
-### Tailwind CSS sin npm
-
-El tema `theme` usa Tailwind CSS v4 con el ejecutable standalone, sin Node.js ni npm. La primera vez, descarga el ejecutable y genera CSS con:
-
-```bash
-python manage.py tailwind install
-```
-
-Mientras desarrollas, inicia el observador en otra terminal con `.venv` activado:
-
-```bash
-python manage.py tailwind start
-```
-
-En PyCharm puedes agregar una configuración **Python** con `manage.py` como script, `tailwind start` como parámetros y la carpeta del proyecto como directorio de trabajo. Agrégala al Compound junto a Uvicorn, Worker y Beat. El observador recompila CSS, pero no recarga el navegador automáticamente.
-
-Extiende `theme/templates/base.html` desde tus plantillas. El CSS generado en `theme/static/css/dist/` se excluye de Git; Docker lo compila durante la construcción de la imagen antes de `collectstatic`. Si usas el Compose local con el código montado, ejecuta `tailwind install` en el equipo primero para generar el CSS local.
-
 Para ejecutar tareas y tareas programadas, abre dos terminales adicionales, activa `.venv` en cada una y ejecuta:
 
 ```bash
@@ -107,7 +97,7 @@ La integración usa consultas paginadas y no marca el feed como leído. La prime
 
 Con `ANYMARKET_ENABLED=true`, Beat también programa una reconciliación diaria a las 03:00 en `DJANGO_TIME_ZONE` (UTC por defecto), que vuelve a consultar actualizaciones de los últimos 7 días y actualiza los pedidos ya importados. Los pedidos no importados solo se incorporan si están actualmente en `PAID_WAITING_SHIP`. Si la reconciliación coincide con otro proceso, Celery la reintenta; supervisa los fallos y los límites de la API. La pantalla muestra la última ejecución correcta y el último error de ambos procesos. Una demora de indexación o interrupción superior a siete días requiere una recuperación adicional. Mantén una sola cuenta y ambiente por base de datos: cambiar token o ambiente requiere una estrategia de migración de datos y punto de control.
 
-El listado está disponible en `/anymarket/pedidos/` para usuarios con el permiso `anymarket.view_pedido`, que un administrador puede asignar directamente o mediante un grupo en Django Admin. El acceso se deniega por defecto. La tabla utiliza Tabulator 6.3.1 con archivos compartidos en `static/vendor/tabulator/` y su licencia MIT; si JavaScript no está disponible, se muestra una tabla HTML con la misma paginación. Los estilos y scripts de la vista están en `static/anymarket/`.
+El listado está disponible en Astro para usuarios con el permiso `anymarket.view_pedido`, que un administrador puede asignar directamente o mediante un grupo en Django Admin. El acceso se deniega por defecto. Astro usa Tabulator para la tabla y requiere JavaScript; las rutas antiguas `/login/` y `/anymarket/pedidos/` redirigen a Astro. Las rutas antiguas de exportación y sincronización se conservan, además de las rutas de la API.
 
 La columna Status corresponde al estado del marketplace. La exportación Excel incluye todos los pedidos que coinciden con los filtros, con un máximo de 50 000 por descarga; para instalar la dependencia de exportación, actualiza el entorno con `pip install -r requirements.txt` y reconstruye la imagen si usas Docker.
 
@@ -131,7 +121,7 @@ Channels usa la base Redis 0, Celery usa la 1 como cola y la 2 para resultados. 
    docker compose --env-file .env.dev -p inet-ivs-dev -f docker-compose.yml -f compose.local.yml up --build
    ```
 
-3. Abre `http://localhost:8000/`. Para importar los usuarios desde otra terminal:
+3. Inicia Astro con `npm run dev` desde `frontend/` y abre `http://127.0.0.1:4321/`. Para importar los usuarios desde otra terminal:
 
    ```bash
    docker compose --env-file .env.dev -p inet-ivs-dev -f docker-compose.yml -f compose.local.yml exec web python manage.py sincronizar_usuarios_ivs

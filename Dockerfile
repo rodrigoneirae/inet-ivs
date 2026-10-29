@@ -12,8 +12,6 @@ RUN pip install --no-cache-dir -r requirements.txt \
     && chown app:app /app /var/lib/celery
 
 COPY --chown=app:app . .
-# Compile Tailwind at build time, before Django collects static files.
-RUN DJANGO_DEBUG=True python manage.py tailwind install
 USER app
 
 EXPOSE 8000

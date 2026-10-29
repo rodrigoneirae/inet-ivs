@@ -13,7 +13,7 @@ from django.views.decorators.cache import never_cache
 from django.views.decorators.http import require_GET, require_POST
 
 from modulo.anymarket.views import consulta_pedidos, exportar_pedidos, solicitar_sincronizacion
-from modulo.anymarket.models import Pedido
+from modulo.anymarket.models import Pedido, Sincronizacion
 
 
 class LoginForm(forms.Form):
@@ -117,6 +117,15 @@ def pedidos(request: HttpRequest) -> JsonResponse:
     estados = list(Pedido.objects.exclude(datos__marketPlaceStatus__isnull=True)
                    .values_list('datos__marketPlaceStatus', flat=True).distinct()
                    .order_by('datos__marketPlaceStatus')[:100])
+    sincronizaciones = {
+        registro.clave: {
+            'ultimo_exito': registro.ultimo_exito.isoformat() if registro.ultimo_exito else None,
+            'ultimo_error_en': registro.ultimo_error_en.isoformat() if registro.ultimo_error_en else None,
+            'ultimo_error': registro.ultimo_error,
+        }
+        for registro in Sincronizacion.objects.filter(clave__in=['pedidos', 'reconciliacion'])
+    }
     return JsonResponse({'resultados': results, 'pagina': pagina.number,
                          'paginas': pagina.paginator.num_pages, 'total': pagina.paginator.count,
-                         'canales': canales, 'estados': estados})
+                         'canales': canales, 'estados': estados, 'sincronizaciones': sincronizaciones,
+                         'zona_horaria': settings.ANYMARKET_TIME_ZONE})

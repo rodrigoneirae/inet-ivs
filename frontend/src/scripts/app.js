@@ -48,6 +48,7 @@ function displaySession(data) {
     $('#greeting').textContent = `Hola, ${data.usuario}`;
     $('#nav-orders').hidden = !data.puede_ver_pedidos;
     $('#sync').hidden = !data.puede_sincronizar;
+    if (window.location.hash === '#pedidos' && data.puede_ver_pedidos) $('#nav-orders').click();
   }
 }
 
@@ -113,6 +114,25 @@ function renderTable(data) {
   });
 }
 
+function renderSyncStatus(data) {
+  const container = $('#sync-status');
+  container.replaceChildren();
+  const format = value => value ? new Intl.DateTimeFormat('es-CL', {
+    timeZone: data.zona_horaria, dateStyle: 'short', timeStyle: 'medium',
+  }).format(new Date(value)) : 'Sin registro';
+  for (const [key, label] of [['pedidos', 'Sincronización'], ['reconciliacion', 'Reconciliación']]) {
+    const state = data.sincronizaciones[key] || {};
+    const item = document.createElement('div');
+    item.textContent = `${label}: última ejecución correcta: ${format(state.ultimo_exito)}`;
+    if (state.ultimo_error) {
+      const error = document.createElement('p');
+      error.textContent = `Error: ${state.ultimo_error}${state.ultimo_error_en ? ` (${format(state.ultimo_error_en)})` : ''}`;
+      item.append(error);
+    }
+    container.append(item);
+  }
+}
+
 async function loadOrders(next = 1, keep = false) {
   try {
     const selected = keep ? new URLSearchParams(applied) : params();
@@ -125,6 +145,7 @@ async function loadOrders(next = 1, keep = false) {
     $('#pagination').textContent = `${data.total} pedidos · Página ${page} de ${pages}`;
     $('#previous').disabled = page <= 1;
     $('#next').disabled = page >= pages;
+    renderSyncStatus(data);
     renderTable(data);
   } catch (error) { toast(error.message); }
 }

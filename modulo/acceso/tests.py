@@ -50,21 +50,13 @@ class AccesoTests(TestCase):
         self.assertEqual(sincronizar_usuarios(), (1, 1))
         self.assertTrue(get_user_model().objects.get(username='operador').check_password('clave-original'))
 
-    def test_inicio_protegido_y_cierre_de_sesion(self) -> None:
-        self.assertRedirects(self.client.get(reverse('inicio')), '/login/?next=/')
+    def test_sesion_y_cierre_de_sesion(self) -> None:
+        self.assertIsNone(self.client.get('/api/v1/sesion/').json()['usuario'])
         usuario = get_user_model().objects.create_user(username='prueba', password='clave')
         self.client.force_login(usuario)
-        self.assertContains(self.client.get(reverse('inicio')), 'Hola, prueba')
-        self.assertRedirects(self.client.post(reverse('logout')), reverse('login'))
+        self.assertEqual(self.client.get('/api/v1/sesion/').json()['usuario'], 'prueba')
+        self.assertEqual(self.client.post('/api/v1/salir/').status_code, 200)
+        self.assertIsNone(self.client.get('/api/v1/sesion/').json()['usuario'])
 
-    def test_menu_usuario_muestra_nombre_correo_y_salida(self) -> None:
-        usuario = get_user_model().objects.create_user(
-            username='operador', first_name='Rodrigo', last_name='Neira', email='operador@example.com'
-        )
-        self.client.force_login(usuario)
-        respuesta = self.client.get(reverse('inicio'))
-        self.assertContains(respuesta, 'Menú de usuario')
-        self.assertContains(respuesta, 'Rodrigo Neira')
-        self.assertContains(respuesta, 'operador@example.com')
-        self.assertContains(respuesta, 'Salir')
-        self.assertContains(respuesta, 'csrfmiddlewaretoken')
+    def test_login_anterior_redirige_a_astro(self) -> None:
+        self.assertRedirects(self.client.get(reverse('login')), '/', fetch_redirect_response=False)

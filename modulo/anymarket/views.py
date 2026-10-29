@@ -7,13 +7,12 @@ from django.conf import settings
 from django.contrib.auth.decorators import login_required, permission_required
 from django.contrib import messages
 from django.core.cache import cache
-from django.core.paginator import Paginator
 from django.db.models import Case, DateTimeField, F, Func, IntegerField, Q, TextField, Value, When
 from django.db.models.fields.json import KeyTextTransform
 from django.db.models.functions import Cast, Coalesce, NullIf
 from django.db.models.query import QuerySet
 from django.http import FileResponse, HttpRequest, HttpResponse, HttpResponseBadRequest
-from django.shortcuts import redirect, render
+from django.shortcuts import redirect
 from django.utils import timezone
 from django.views.decorators.cache import never_cache
 from django.views.decorators.http import require_GET, require_POST
@@ -21,7 +20,7 @@ from openpyxl import Workbook
 from openpyxl.cell import WriteOnlyCell
 from openpyxl.cell.cell import ILLEGAL_CHARACTERS_RE
 
-from .models import Pedido, Sincronizacion
+from .models import Pedido
 from .forms import FiltrosPedidosForm
 from .tasks import sincronizar_pedidos
 
@@ -101,39 +100,6 @@ def consulta_pedidos(request: HttpRequest) -> tuple[QuerySet, FiltrosPedidosForm
     criterio = campo.asc(nulls_last=True) if direccion == 'asc' else campo.desc(nulls_last=True)
     queryset = queryset.order_by(criterio, '-pk')
     return queryset, filtros, orden, direccion
-
-
-@login_required
-@permission_required('anymarket.view_pedido', raise_exception=True)
-@require_GET
-@never_cache
-def pedidos(request: HttpRequest) -> HttpResponse:
-    queryset, filtros, orden, direccion = consulta_pedidos(request)
-    tamano = request.GET.get('tamano', '10')
-    if tamano not in ('5', '10', '15', '20', '25'):
-        tamano = '10'
-    pagina = Paginator(queryset, int(tamano)).get_page(request.GET.get('page'))
-    params = request.GET.copy()
-    params.pop('page', None)
-    params['orden'] = orden
-    params['direccion'] = direccion
-    params['tamano'] = tamano
-    return render(request, 'anymarket/pedidos.html', {
-        'pagina': pagina,
-        'zona_horaria': settings.ANYMARKET_TIME_ZONE,
-        'orden': orden,
-        'direccion': direccion,
-        'filtros': filtros,
-        'parametros': params.urlencode(),
-        'tamano': tamano,
-        'estado_sincronizacion': Sincronizacion.objects.filter(clave='pedidos').first(),
-        'estado_reconciliacion': Sincronizacion.objects.filter(clave='reconciliacion').first(),
-        'canales': list(Pedido.objects.exclude(datos__marketPlace__isnull=True)
-                        .values_list('datos__marketPlace', flat=True).distinct().order_by('datos__marketPlace')[:200]),
-        'estados': list(Pedido.objects.exclude(datos__marketPlaceStatus__isnull=True)
-                        .values_list('datos__marketPlaceStatus', flat=True).distinct()
-                        .order_by('datos__marketPlaceStatus')[:100]),
-    })
 
 
 def solicitar_sincronizacion() -> tuple[str, str]:

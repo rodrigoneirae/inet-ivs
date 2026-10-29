@@ -13,6 +13,7 @@ test('el formulario muestra la sesión tras una respuesta asíncrona', async () 
         addEventListener(type, callback) { this.listeners[type] = callback; },
         querySelectorAll() { return []; },
         reset() { this.wasReset = true; },
+        click() { this.wasClicked = true; },
       });
     }
     return elements.get(selector);
@@ -21,7 +22,7 @@ test('el formulario muestra la sesión tras una respuesta asíncrona', async () 
   const loggedIn = { csrf: 'nuevo', usuario: 'usuario', puede_ver_pedidos: true };
   const context = {
     document: { querySelector: element, documentElement: { classList: { add() {} } } },
-    window: { matchMedia: () => ({ matches: false }) },
+    window: { matchMedia: () => ({ matches: false }), location: { hash: '#pedidos' } },
     FormData: class { constructor() { return new Map([['username', 'usuario'], ['password', 'clave']]); } },
     URLSearchParams,
     fetch: async (path) => ({ ok: true, json: async () => path.includes('ingresar') ? loggedIn : session }),
@@ -38,4 +39,5 @@ test('el formulario muestra la sesión tras una respuesta asíncrona', async () 
   assert.equal(form.wasReset, true);
   assert.equal(element('#app').hidden, false);
   assert.equal(element('#username').textContent, 'usuario');
+  assert.equal(element('#nav-orders').wasClicked, true);
 });

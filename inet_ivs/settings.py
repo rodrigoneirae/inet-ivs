@@ -55,15 +55,9 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'channels',
-    'tailwind',
-    'theme',
     'modulo.acceso',
     'modulo.anymarket',
 ]
-
-TAILWIND_APP_NAME = 'theme'
-TAILWIND_USE_STANDALONE_BINARY = True
-TAILWIND_STANDALONE_BINARY_VERSION = 'v4.3.3'
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
@@ -188,8 +182,8 @@ DATABASE_ROUTERS = ['inet_ivs.db_router.ExternalDatabaseRouter']
 
 AUTHENTICATION_BACKENDS = ['modulo.acceso.backends.IVSBackend']
 LOGIN_URL = 'login'
-LOGIN_REDIRECT_URL = 'inicio'
-LOGOUT_REDIRECT_URL = 'login'
+LOGIN_REDIRECT_URL = '/'
+LOGOUT_REDIRECT_URL = '/'
 
 
 # Password validation

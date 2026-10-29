@@ -10,7 +10,6 @@ celerybeat-schedule*
 .idea/
 db.sqlite3
 staticfiles/
-theme/static/css/dist/
 /.fuse_hidden*
 frontend/node_modules/
 frontend/dist/

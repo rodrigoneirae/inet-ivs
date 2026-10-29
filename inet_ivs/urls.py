@@ -15,9 +15,8 @@ Including another URLconf
     2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
 """
 from django.contrib import admin
-from django.contrib.auth import views as auth_views
 from django.urls import include, path
-from modulo.acceso.views import inicio
+from django.views.generic import RedirectView
 from modulo.acceso import api
 
 urlpatterns = [
@@ -28,8 +27,6 @@ urlpatterns = [
     path('api/v1/pedidos/exportar/', api.exportar),
     path('api/v1/pedidos/sincronizar/', api.sincronizar),
     path('admin/', admin.site.urls),
-    path('', inicio, name='inicio'),
+    path('login/', RedirectView.as_view(url='/', permanent=False), name='login'),
     path('anymarket/', include('modulo.anymarket.urls')),
-    path('login/', auth_views.LoginView.as_view(template_name='acceso/login.html', redirect_authenticated_user=True), name='login'),
-    path('logout/', auth_views.LogoutView.as_view(), name='logout'),
 ]

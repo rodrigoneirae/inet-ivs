@@ -20,6 +20,12 @@ class ApiTests(SimpleTestCase):
         request.user = AnonymousUser()
         self.assertEqual(api.pedidos(request).status_code, 401)
 
+    def test_admin_and_legacy_navigation_remain_available(self) -> None:
+        client = Client()
+        self.assertEqual(client.get('/admin/login/').status_code, 200)
+        self.assertRedirects(client.get('/login/'), '/', fetch_redirect_response=False)
+        self.assertRedirects(client.get('/anymarket/pedidos/'), '/#pedidos', fetch_redirect_response=False)
+
     def test_pedidos_requires_permission(self) -> None:
         request = self.factory.get('/api/v1/pedidos/')
         request.user = Mock(is_authenticated=True)
@@ -77,9 +83,10 @@ class ApiTests(SimpleTestCase):
         request.user.has_perm.return_value = True
         self.assertEqual(api.pedidos(request).status_code, 400)
 
+    @patch('modulo.acceso.api.Sincronizacion.objects')
     @patch('modulo.acceso.api.Pedido.objects')
     @patch('modulo.acceso.api.consulta_pedidos')
-    def test_filters_and_options(self, consulta: Mock, manager: Mock) -> None:
+    def test_filters_and_options(self, consulta: Mock, manager: Mock, sincronizaciones: Mock) -> None:
         request = self.factory.get('/api/v1/pedidos/', {
             'desde': '2026-10-01', 'hasta': '2026-10-20', 'canal': 'shopify',
             'estado': 'paid', 'orden': 'cliente', 'direccion': 'asc', 'page': '1',
@@ -89,6 +96,7 @@ class ApiTests(SimpleTestCase):
         filtros = Mock()
         filtros.is_valid.return_value = True
         consulta.return_value = ([], filtros, 'cliente', 'asc')
+        sincronizaciones.filter.return_value = []
         choices = manager.exclude.return_value.values_list.return_value.distinct.return_value.order_by.return_value
         choices.__getitem__.side_effect = [['shopify'], ['paid']]
         response = api.pedidos(request)

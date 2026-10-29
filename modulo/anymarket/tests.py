@@ -178,13 +178,13 @@ class BloqueoSincronizacionTests(TransactionTestCase):
 class PedidosVistaTests(TestCase):
     def setUp(self) -> None:
         self.usuario = get_user_model().objects.create_user(username='operador')
-        self.url = reverse('anymarket:pedidos')
+        self.url = '/api/v1/pedidos/'
 
     def test_requiere_login_y_permiso(self) -> None:
-        self.assertEqual(self.client.get(self.url).status_code, 302)
+        self.assertEqual(self.client.get(self.url).status_code, 401)
         self.client.force_login(self.usuario)
         self.assertEqual(self.client.get(self.url).status_code, 403)
-        self.assertNotContains(self.client.get(reverse('inicio')), 'Pedidos AnyMarket')
+        self.assertFalse(self.client.get('/api/v1/sesion/').json()['puede_ver_pedidos'])
 
     def test_listado_paginado_escapa_datos_y_muestra_fecha_chilena(self) -> None:
         self.usuario.user_permissions.add(Permission.objects.get(codename='view_pedido', content_type__app_label='anymarket'))
@@ -197,35 +197,31 @@ class PedidosVistaTests(TestCase):
                 datos={'marketPlaceNumber': '<script>malicioso</script>', 'marketPlace': 'TIENDA', 'total': 0,
                        'buyer': {'name': 'Cliente', 'email': 'NO EXPONER'}},
             )
-        respuesta = self.client.get(self.url, {'tamano': '25'})
-        self.assertContains(respuesta, 'vendor/litepicker/litepicker.js')
-        self.assertContains(respuesta, 'id="rango-fechas"')
-        self.assertContains(respuesta, 'anymarket/rango-fechas.js')
-        self.assertEqual(len(respuesta.context['pagina']), 25)
-        self.assertContains(respuesta, '27/10/2026 01:00')
-        self.assertContains(respuesta, '&lt;script&gt;malicioso&lt;/script&gt;')
-        self.assertNotContains(respuesta, '<script>malicioso</script>')
+        respuesta = self.client.get(self.url)
+        contenido = respuesta.json()
+        self.assertEqual(len(contenido['resultados']), 20)
+        self.assertEqual(contenido['resultados'][0]['fecha_local'], '27/10/2026 01:00:00')
+        self.assertEqual(contenido['resultados'][0]['numero'], '<script>malicioso</script>')
         self.assertNotContains(respuesta, 'NO EXPONER')
-        self.assertContains(respuesta, 'Siguiente')
-        self.assertEqual(len(self.client.get(self.url, {'page': 2, 'tamano': '25'}).context['pagina']), 1)
-        self.assertContains(self.client.get(reverse('inicio')), 'Pedidos AnyMarket')
+        self.assertEqual(len(self.client.get(self.url, {'page': 2}).json()['resultados']), 6)
+        self.assertTrue(self.client.get('/api/v1/sesion/').json()['puede_ver_pedidos'])
         self.assertIn('no-store', respuesta['Cache-Control'])
 
     def test_sin_pedidos(self) -> None:
         self.usuario.user_permissions.add(Permission.objects.get(codename='view_pedido', content_type__app_label='anymarket'))
         self.client.force_login(self.usuario)
-        self.assertContains(self.client.get(self.url), 'No hay pedidos que coincidan con los filtros.')
+        self.assertEqual(self.client.get(self.url).json()['resultados'], [])
 
-    def test_muestra_exito_y_error_de_las_sincronizaciones(self) -> None:
+    def test_estado_sincronizacion_en_api(self) -> None:
         self.usuario.user_permissions.add(Permission.objects.get(codename='view_pedido', content_type__app_label='anymarket'))
         self.client.force_login(self.usuario)
         fecha = datetime(2026, 10, 27, 4, tzinfo=dt_timezone.utc)
         Sincronizacion.objects.create(clave='pedidos', ultimo_exito=fecha)
         Sincronizacion.objects.create(clave='reconciliacion', ultimo_error='Error de prueba', ultimo_error_en=fecha)
-        respuesta = self.client.get(self.url)
-        self.assertContains(respuesta, 'Última sincronización correcta:')
-        self.assertContains(respuesta, '27/10/2026 01:00:00')
-        self.assertContains(respuesta, 'Error de prueba')
+        resultado = self.client.get(self.url).json()
+        self.assertEqual(resultado['zona_horaria'], 'America/Santiago')
+        self.assertEqual(resultado['sincronizaciones']['pedidos']['ultimo_exito'], fecha.isoformat())
+        self.assertEqual(resultado['sincronizaciones']['reconciliacion']['ultimo_error'], 'Error de prueba')
 
     def test_estado_fullfillment_en_listado_y_excel(self) -> None:
         self.usuario.user_permissions.add(Permission.objects.get(codename='view_pedido', content_type__app_label='anymarket'))
@@ -234,7 +230,7 @@ class PedidosVistaTests(TestCase):
             Pedido.objects.create(anymarket_id=numero, creado_en=datetime(2026, 10, 27, tzinfo=dt_timezone.utc),
                                   estado='PAID_WAITING_SHIP', datos={'fulfillment': valor})
         respuesta = self.client.get(self.url)
-        self.assertContains(respuesta, 'FullFillment', count=1)
+        self.assertEqual(sum(p['fulfillment'] for p in respuesta.json()['resultados']), 1)
         exportacion = self.client.get(reverse('anymarket:exportar_pedidos'))
         libro = load_workbook(BytesIO(b''.join(exportacion.streaming_content)), read_only=True)
         valores = [fila[7] for fila in list(libro.active.values)[1:]]
@@ -251,8 +247,9 @@ class PedidosVistaTests(TestCase):
         self.usuario.user_permissions.add(Permission.objects.get(codename='change_pedido', content_type__app_label='anymarket'))
         self.client.force_login(get_user_model().objects.get(pk=self.usuario.pk))
         self.assertEqual(self.client.get(url).status_code, 405)
-        self.assertRedirects(self.client.post(url), self.url, fetch_redirect_response=False)
-        self.assertRedirects(self.client.post(url), self.url, fetch_redirect_response=False)
+        self.assertRedirects(self.client.post(url), '/anymarket/pedidos/', fetch_redirect_response=False)
+        self.assertRedirects(self.client.post(url), '/anymarket/pedidos/', fetch_redirect_response=False)
+        self.assertRedirects(self.client.get('/anymarket/pedidos/'), '/#pedidos', fetch_redirect_response=False)
         encolar.assert_called_once_with(retry=False)
         cache.clear()
 
@@ -267,11 +264,10 @@ class PedidosVistaTests(TestCase):
                                          'marketPlaceStatus': 'paid'})
         respuesta = self.client.get(self.url, {'desde': '2026-10-27', 'hasta': '2026-10-27',
                                               'busqueda': 'ana', 'canal': 'Tienda', 'estado': 'paid'})
-        self.assertEqual(respuesta.context['pagina'].paginator.count, 1)
-        self.assertContains(respuesta, 'Ana')
-        self.assertEqual(respuesta.context['pagina'][0].cantidad_items, 2)
-        self.assertContains(self.client.get(self.url, {'desde': '2026-10-28', 'hasta': '2026-10-27'}),
-                            'La fecha final debe ser igual o posterior')
+        self.assertEqual(respuesta.json()['total'], 1)
+        self.assertEqual(respuesta.json()['resultados'][0]['cliente'], 'Ana')
+        self.assertEqual(respuesta.json()['resultados'][0]['items'], 2)
+        self.assertEqual(self.client.get(self.url, {'desde': '2026-10-28', 'hasta': '2026-10-27'}).status_code, 400)
 
     def test_orden_total_across_paginas_y_parametros_invalidos(self) -> None:
         self.usuario.user_permissions.add(Permission.objects.get(codename='view_pedido', content_type__app_label='anymarket'))
@@ -279,14 +275,12 @@ class PedidosVistaTests(TestCase):
         for numero in range(26):
             Pedido.objects.create(anymarket_id=numero + 1, creado_en=datetime(2026, 10, 27, tzinfo=dt_timezone.utc),
                                   estado='PAID_WAITING_SHIP', datos={'total': numero})
-        primera = self.client.get(self.url, {'orden': 'total', 'direccion': 'desc', 'tamano': '25'})
-        self.assertEqual(primera.context['pagina'][0].datos['total'], 25)
-        self.assertContains(primera, 'orden=total&amp;direccion=desc&amp;tamano=25&amp;page=2')
-        segunda = self.client.get(self.url, {'orden': 'total', 'direccion': 'desc', 'tamano': '25', 'page': 2})
-        self.assertEqual(segunda.context['pagina'][0].datos['total'], 0)
+        primera = self.client.get(self.url, {'orden': 'total', 'direccion': 'desc'})
+        self.assertEqual(primera.json()['resultados'][0]['total'], 25)
+        segunda = self.client.get(self.url, {'orden': 'total', 'direccion': 'desc', 'page': 2})
+        self.assertEqual(segunda.json()['resultados'][-1]['total'], 0)
         invalida = self.client.get(self.url, {'orden': 'datos__buyer', 'direccion': 'invalida'})
-        self.assertEqual(invalida.context['orden'], 'fecha')
-        self.assertEqual(invalida.context['direccion'], 'desc')
+        self.assertEqual(invalida.status_code, 200)
 
     def test_busqueda_global_abarca_columnas_y_todas_las_paginas(self) -> None:
         self.usuario.user_permissions.add(Permission.objects.get(codename='view_pedido', content_type__app_label='anymarket'))
@@ -302,10 +296,10 @@ class PedidosVistaTests(TestCase):
         for termino in ('OC-ESPECIAL', 'CANAL-UNICO', 'CLIENTE-UNICO', 'ESTADO-UNICO', '98765', '3'):
             with self.subTest(termino=termino):
                 respuesta = self.client.get(self.url, {'busqueda': termino, 'tamano': '5'})
-                self.assertEqual(respuesta.context['pagina'].paginator.count, 1)
-                self.assertContains(respuesta, 'OC-ESPECIAL')
+                self.assertEqual(respuesta.json()['total'], 1)
+                self.assertEqual(respuesta.json()['resultados'][0]['numero'], 'OC-ESPECIAL')
         respuesta = self.client.get(self.url, {'busqueda': '27/10/2026'})
-        self.assertEqual(respuesta.context['pagina'].paginator.count, 14)
+        self.assertEqual(respuesta.json()['total'], 14)
         exportacion = self.client.get(reverse('anymarket:exportar_pedidos'), {'busqueda': 'CANAL-UNICO'})
         libro = load_workbook(BytesIO(b''.join(exportacion.streaming_content)), read_only=True)
         self.assertEqual(len(list(libro.active.rows)), 2)
@@ -320,8 +314,8 @@ class PedidosVistaTests(TestCase):
                 Pedido.objects.create(anymarket_id=numero, creado_en=datetime(2026, 10, 27, tzinfo=dt_timezone.utc),
                                       estado='PAID_WAITING_SHIP', datos={'marketPlace': original})
                 respuesta = self.client.get(self.url, {'busqueda': nombre, 'canal': original})
-                self.assertEqual(respuesta.context['pagina'].paginator.count, 1)
-                self.assertContains(respuesta, nombre)
+                self.assertEqual(respuesta.json()['total'], 1)
+                self.assertEqual(respuesta.json()['resultados'][0]['canal'], original)
                 exportacion = self.client.get(reverse('anymarket:exportar_pedidos'), {'busqueda': nombre})
                 libro = load_workbook(BytesIO(b''.join(exportacion.streaming_content)), read_only=True)
                 self.assertEqual(list(libro.active.values)[1][0], nombre)
