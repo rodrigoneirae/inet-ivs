@@ -3,15 +3,21 @@ use std::path::PathBuf;
 
 use base64::engine::general_purpose::STANDARD as BASE64;
 use base64::Engine;
+use tauri::{Manager, Url};
 use tauri_plugin_dialog::DialogExt;
 
+/// Variable de entorno que permite apuntar la aplicación a otro despliegue.
+const VARIABLE_SERVIDOR: &str = "INET_IVS_URL";
+
 /// Orígenes autorizados a solicitar el guardado de un archivo.
-const ORIGENES_PERMITIDOS: [(&str, &str, Option<u16>); 5] = [
+const ORIGENES_PERMITIDOS: [(&str, &str, Option<u16>); 7] = [
     ("https", "inet-ivs.inversierra.cl", None),
     ("tauri", "localhost", None),
     ("http", "tauri.localhost", None),
     ("http", "127.0.0.1", Some(4321)),
     ("http", "localhost", Some(4321)),
+    ("http", "127.0.0.1", Some(8000)),
+    ("http", "localhost", Some(8000)),
 ];
 
 /// El origen se compara por esquema, host y puerto; no por prefijo de texto.
@@ -22,10 +28,7 @@ fn origen_permitido(url: &tauri::Url) -> bool {
     ORIGENES_PERMITIDOS
         .iter()
         .any(|(esquema_permitido, host_permitido, puerto_permitido)| {
-            let coincide_puerto = match puerto_permitido {
-                None => true,
-                Some(permitido) => puerto == Some(*permitido),
-            };
+            let coincide_puerto = puerto == *puerto_permitido;
             esquema == *esquema_permitido
                 && host.eq_ignore_ascii_case(host_permitido)
                 && coincide_puerto
@@ -59,7 +62,7 @@ async fn guardar_archivo(
         .add_filter("Excel", &["xlsx"])
         .set_file_name(&nombre)
         .save_file(move |ruta| {
-            let _ = enviar.send(ruta);
+            let _ = enviar.blocking_send(ruta);
         });
 
     let ruta = recibir
@@ -102,6 +105,19 @@ fn sanitizar_nombre(nombre: &str) -> String {
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
+        .setup(|app| {
+            // Permite probar la aplicación contra otro despliegue sin recompilar.
+            if let (Ok(valor), Some(ventana)) =
+                (std::env::var(VARIABLE_SERVIDOR), app.get_webview_window("main"))
+            {
+                if let Ok(url) = Url::parse(&valor) {
+                    if origen_permitido(&url) {
+                        ventana.navigate(url)?;
+                    }
+                }
+            }
+            Ok(())
+        })
         .invoke_handler(tauri::generate_handler![guardar_archivo])
         .run(tauri::generate_context!())
         .expect("No se pudo iniciar INET IVS");
@@ -118,6 +134,8 @@ mod pruebas {
             "https://inet-ivs.inversierra.cl/pedidos/",
             "http://127.0.0.1:4321/",
             "http://localhost:4321/pedidos/",
+            "http://127.0.0.1:8000/",
+            "http://localhost:8000/pedidos/",
             "tauri://localhost/",
         ] {
             assert!(origen_permitido(&url.parse().unwrap()), "{url}");
@@ -132,6 +150,7 @@ mod pruebas {
             "https://inet-ivs.inversierra.cl.otro.example/",
             "https://otro.example/#https://inet-ivs.inversierra.cl",
             "http://127.0.0.1:4322/",
+            "http://127.0.0.1:8001/",
         ] {
             assert!(!origen_permitido(&url.parse().unwrap()), "{url}");
         }

@@ -83,6 +83,27 @@ async function run(context) {
   await new Promise(resolve => setImmediate(resolve));
 }
 
+test('el rango de fechas actualiza y limpia los filtros enviados al servidor', async () => {
+  const { context, element } = createContext();
+  let selected;
+  let cleared = false;
+  context.window.Litepicker = class {
+    constructor(options) {
+      assert.equal(options.singleMode, false);
+      options.setup({ on(event, callback) { if (event === 'selected') selected = callback; } });
+    }
+    clearSelection() { cleared = true; }
+  };
+  await run(context);
+  selected({ format: () => '2026-10-14' }, { format: () => '2026-10-29' });
+  assert.equal(element('#filtro-desde').value, '2026-10-14');
+  assert.equal(element('#filtro-hasta').value, '2026-10-29');
+  element('#limpiar-rango').listeners.click();
+  assert.equal(cleared, true);
+  assert.equal(element('#filtro-desde').value, '');
+  assert.equal(element('#filtro-hasta').value, '');
+});
+
 test('el formulario muestra la sesión tras una respuesta asíncrona', async () => {
   const { context, element } = createContext();
   await run(context);

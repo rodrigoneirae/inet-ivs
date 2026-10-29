@@ -357,8 +357,32 @@ setSidebar(false);
 setSidebarCollapsed(readStorage(SIDEBAR_KEY) === 'collapsed');
 applyTheme(currentTheme());
 if (window.Litepicker) {
-  for (const input of form.querySelectorAll('input[type="date"]')) {
-    new window.Litepicker({ element: input, singleMode: true, format: 'YYYY-MM-DD', lang: 'es-ES' });
-  }
+  const desde = $('#filtro-desde');
+  const hasta = $('#filtro-hasta');
+  const picker = new window.Litepicker({
+    element: $('#filtro-rango'),
+    singleMode: false,
+    format: 'DD-MM-YYYY',
+    delimiter: ' - ',
+    lang: 'es-ES',
+    setup(instance) {
+      instance.on('selected', (inicio, fin) => {
+        desde.value = inicio.format('YYYY-MM-DD');
+        hasta.value = fin.format('YYYY-MM-DD');
+      });
+    },
+  });
+  $('#limpiar-rango').addEventListener('click', () => {
+    picker.clearSelection();
+    desde.value = '';
+    hasta.value = '';
+  });
+  $('#fechas-manuales').addEventListener('click', () => {
+    $('#rango-fechas').hidden = true;
+    $('#fechas-alternativas').hidden = false;
+    desde.focus();
+  });
+  $('#fechas-alternativas').hidden = true;
+  $('#rango-fechas').hidden = false;
 }
 request('/api/v1/sesion/').then(response => response.json()).then(displaySession).catch(error => toast(error.message, 'error'));
