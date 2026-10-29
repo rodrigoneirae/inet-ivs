@@ -251,7 +251,6 @@ const apiBase = (import.meta.env.PUBLIC_API_BASE ?? '').replace(/\/$/, '');
                       <button id="limpiar-rango" type="button" class="btn btn-secondary" aria-label="Limpiar rango de fechas">Limpiar</button>
                     </div>
                     <span id="ayuda-rango" class="sr-only">Selecciona una fecha de inicio y una fecha final.</span>
-                    <button id="fechas-manuales" type="button" class="mt-1 text-xs font-medium text-primary-ink underline underline-offset-2">Ingresar fechas manualmente</button>
                   </div>
                   <div id="fechas-alternativas" class="grid grid-cols-2 gap-2">
                     <div><label class="field-label" for="filtro-desde">Desde</label><input id="filtro-desde" type="date" name="desde" class="field" /></div>
@@ -260,10 +259,7 @@ const apiBase = (import.meta.env.PUBLIC_API_BASE ?? '').replace(/\/$/, '');
                 </div>
                 <div class="min-w-0 xl:mx-auto xl:w-full xl:max-w-md">
                   <label class="field-label" for="filtro-busqueda">Buscar</label>
-                  <div class="flex gap-2">
-                    <input id="filtro-busqueda" name="busqueda" maxlength="100" class="field min-w-0" placeholder="Número de pedido o cliente" />
-                    <button type="submit" class="btn btn-primary shrink-0">Buscar</button>
-                  </div>
+                  <input id="filtro-busqueda" name="busqueda" maxlength="100" class="field min-w-0" placeholder="Número de pedido o cliente" />
                 </div>
                 <div class="flex flex-wrap items-center gap-2 xl:justify-end">
                   <button type="button" id="sync" class="btn btn-danger" hidden>Ejecutar tarea</button>

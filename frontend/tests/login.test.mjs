@@ -104,6 +104,30 @@ test('el rango de fechas actualiza y limpia los filtros enviados al servidor', a
   assert.equal(element('#filtro-hasta').value, '');
 });
 
+test('la selección del rango y la búsqueda solicitan pedidos automáticamente', async () => {
+  const paths = [];
+  const { context, element } = createContext({
+    fetch: async path => {
+      paths.push(path);
+      return { ok: true, json: async () => ({ csrf: 'token', usuario: null }) };
+    },
+  });
+  let selected;
+  let searchCallback;
+  context.window.setTimeout = callback => { searchCallback = callback; return 1; };
+  context.window.clearTimeout = () => {};
+  context.window.Litepicker = class {
+    constructor(options) { options.setup({ on(event, callback) { if (event === 'selected') selected = callback; } }); }
+    clearSelection() {}
+  };
+  await run(context);
+  selected({ format: () => '2026-10-14' }, { format: () => '2026-10-29' });
+  assert.equal(paths.filter(path => path.startsWith('/api/v1/pedidos/?')).length, 1);
+  element('#filtro-busqueda').listeners.input();
+  searchCallback();
+  assert.equal(paths.filter(path => path.startsWith('/api/v1/pedidos/?')).length, 2);
+});
+
 test('el formulario muestra la sesión tras una respuesta asíncrona', async () => {
   const { context, element } = createContext();
   await run(context);

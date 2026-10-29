@@ -16,6 +16,8 @@ let canal = '';
 let estado = '';
 let table;
 let applied = new URLSearchParams();
+let ordersRequest = 0;
+let searchTimer;
 
 function readStorage(key) {
   try {
@@ -281,10 +283,12 @@ function renderSyncStatus(data) {
 }
 
 async function loadOrders(next = 1, keep = false) {
+  const requestId = ++ordersRequest;
   try {
     const selected = keep ? new URLSearchParams(applied) : params();
     selected.set('page', String(next));
     const data = await (await request(`/api/v1/pedidos/?${selected}`)).json();
+    if (requestId !== ordersRequest) return;
     selected.delete('page');
     applied = selected;
     page = data.pagina;
@@ -295,6 +299,7 @@ async function loadOrders(next = 1, keep = false) {
     renderSyncStatus(data);
     renderTable(data);
   } catch (error) {
+    if (requestId !== ordersRequest) return;
     $('#pagination').textContent = 'Sin datos';
     toast(error.message, 'error');
   }
@@ -340,6 +345,11 @@ document.addEventListener('keydown', event => {
 });
 if (window.addEventListener) window.addEventListener('resize', syncBodyScroll);
 form.addEventListener('submit', event => { event.preventDefault(); loadOrders(); });
+$('#filtro-busqueda').addEventListener('input', () => {
+  ordersRequest++;
+  window.clearTimeout(searchTimer);
+  searchTimer = window.setTimeout(() => loadOrders(), 350);
+});
 $('#previous').addEventListener('click', () => loadOrders(page - 1, true));
 $('#next').addEventListener('click', () => loadOrders(page + 1, true));
 $('#sync').addEventListener('click', async () => { try { toast((await post('/api/v1/pedidos/sincronizar/')).mensaje, 'success'); } catch (error) { toast(error.message, 'error'); } });
@@ -369,6 +379,8 @@ if (window.Litepicker) {
       instance.on('selected', (inicio, fin) => {
         desde.value = inicio.format('YYYY-MM-DD');
         hasta.value = fin.format('YYYY-MM-DD');
+        window.clearTimeout(searchTimer);
+        loadOrders();
       });
     },
   });
@@ -376,13 +388,14 @@ if (window.Litepicker) {
     picker.clearSelection();
     desde.value = '';
     hasta.value = '';
-  });
-  $('#fechas-manuales').addEventListener('click', () => {
-    $('#rango-fechas').hidden = true;
-    $('#fechas-alternativas').hidden = false;
-    desde.focus();
+    window.clearTimeout(searchTimer);
+    loadOrders();
   });
   $('#fechas-alternativas').hidden = true;
   $('#rango-fechas').hidden = false;
+} else {
+  for (const input of [$('#filtro-desde'), $('#filtro-hasta')]) {
+    input.addEventListener('change', () => loadOrders());
+  }
 }
 request('/api/v1/sesion/').then(response => response.json()).then(displaySession).catch(error => toast(error.message, 'error'));
