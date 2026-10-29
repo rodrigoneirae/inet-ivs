@@ -4,7 +4,7 @@ services:
     environment:
       DJANGO_DEBUG: "True"
       DJANGO_ALLOWED_HOSTS: localhost,127.0.0.1
-      DJANGO_CSRF_TRUSTED_ORIGINS: ""
+      DJANGO_CSRF_TRUSTED_ORIGINS: ${DJANGO_CSRF_TRUSTED_ORIGINS:-}
     volumes:
       - .:/app
     ports:

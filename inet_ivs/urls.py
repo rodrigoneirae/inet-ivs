@@ -18,8 +18,15 @@ from django.contrib import admin
 from django.contrib.auth import views as auth_views
 from django.urls import include, path
 from modulo.acceso.views import inicio
+from modulo.acceso import api
 
 urlpatterns = [
+    path('api/v1/sesion/', api.sesion),
+    path('api/v1/ingresar/', api.ingresar),
+    path('api/v1/salir/', api.salir),
+    path('api/v1/pedidos/', api.pedidos),
+    path('api/v1/pedidos/exportar/', api.exportar),
+    path('api/v1/pedidos/sincronizar/', api.sincronizar),
     path('admin/', admin.site.urls),
     path('', inicio, name='inicio'),
     path('anymarket/', include('modulo.anymarket.urls')),

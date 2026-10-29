@@ -1,0 +1,60 @@
+---
+import '../styles/main.css';
+---
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>INET IVS</title>
+  </head>
+  <body class="bg-slate-50 text-slate-900 dark:bg-slate-900 dark:text-slate-50">
+    <div id="toast" role="status" aria-live="polite" class="fixed bottom-4 right-4 z-50 max-w-sm rounded-lg bg-slate-800 p-4 text-white shadow-lg" hidden></div>
+    <main id="login-screen" class="flex min-h-screen items-center justify-center p-4" hidden>
+      <div class="w-full max-w-md">
+        <div class="mb-8 text-center"><span class="inline-block rounded-2xl bg-blue-600 p-4 font-bold text-white">IVS</span><h1 class="mt-4 text-3xl font-bold">Bienvenido a INET IVS</h1><p class="mt-2">Ingresa con tu usuario y contraseña de IVS SAT.</p></div>
+        <form id="login-form" class="space-y-5 rounded-2xl bg-white p-6 shadow-sm dark:bg-slate-800">
+          <h2 class="text-xl font-semibold">Iniciar sesión</h2>
+          <label class="block">Usuario<input name="username" required maxlength="150" autocomplete="username" class="field mt-2" /></label>
+          <label class="block">Contraseña<input name="password" type="password" required maxlength="256" autocomplete="current-password" class="field mt-2" /></label>
+          <button class="button w-full" type="submit">Ingresar</button>
+        </form>
+      </div>
+    </main>
+    <div id="app" class="min-h-screen md:flex" hidden>
+      <aside id="sidebar" class="w-full bg-white p-5 dark:bg-slate-800 md:w-64 md:shrink-0">
+        <a href="#inicio" class="text-lg font-bold"><span class="mr-2 rounded-lg bg-blue-600 p-2 text-white">IVS</span> INET IVS</a>
+        <nav class="mt-8 space-y-2" aria-label="Navegación principal">
+          <button id="nav-home" class="nav-button">Inicio</button>
+          <button id="nav-orders" class="nav-button" hidden>Pedidos AnyMarket</button>
+        </nav>
+      </aside>
+      <div class="min-w-0 flex-1">
+        <header class="flex flex-wrap items-center gap-3 bg-white p-4 dark:bg-slate-800">
+          <button id="menu-toggle" class="control" aria-controls="sidebar" aria-expanded="true">☰ <span class="sr-only">Mostrar u ocultar menú</span></button>
+          <span id="page-title" class="flex-1 font-semibold">Inicio</span><span id="username"></span>
+          <button id="theme-toggle" class="control" aria-label="Cambiar tema">◐</button>
+          <button id="logout" class="control">Cerrar sesión</button>
+        </header>
+        <section id="home" class="mx-auto max-w-6xl p-6 md:p-10"><p class="font-bold uppercase text-blue-600 dark:text-blue-300">Panel principal</p><h1 id="greeting" class="mt-2 text-3xl font-bold"></h1><p class="mt-3">Bienvenido a INET IVS. Desde aquí podrás acceder a las herramientas de la aplicación.</p><div class="mt-8 rounded-2xl bg-white p-6 dark:bg-slate-800"><h2 class="font-semibold">Tu espacio de trabajo</h2><p class="mt-2">Tu sesión está activa.</p></div></section>
+        <section id="orders" class="p-4 md:p-8" hidden>
+          <h1 class="text-lg font-bold uppercase">Pedidos AnyMarket</h1>
+          <form id="filters" class="my-6 flex flex-wrap items-end gap-3">
+            <label>Desde<input type="date" name="desde" class="field" /></label>
+            <label>Hasta<input type="date" name="hasta" class="field" /></label>
+            <label>Buscar<input name="busqueda" maxlength="100" class="field" /></label>
+            <button type="submit" class="button">Buscar</button>
+            <button type="button" id="sync" class="button bg-red-700" hidden>Ejecutar tarea</button>
+            <button type="button" id="export" class="button bg-green-700">Descargar Excel</button>
+          </form>
+          <div id="orders-table" aria-label="Pedidos importados"></div>
+          <p id="empty" class="py-4" hidden>No hay pedidos que coincidan con los filtros.</p>
+          <nav class="mt-4 flex flex-wrap items-center justify-between gap-3" aria-label="Paginación"><span id="pagination"></span><div class="flex gap-2"><button id="previous" class="control">Anterior</button><button id="next" class="control">Siguiente</button></div></nav>
+        </section>
+      </div>
+    </div>
+    <noscript>Esta interfaz requiere JavaScript. Accede a la versión Django en /login/.</noscript>
+    <script src="/static/vendor/litepicker/litepicker.js" is:inline defer></script>
+    <script src="../scripts/app.js"></script>
+  </body>
+</html>

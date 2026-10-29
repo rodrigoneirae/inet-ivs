@@ -136,22 +136,27 @@ def pedidos(request: HttpRequest) -> HttpResponse:
     })
 
 
-@login_required
-@permission_required('anymarket.change_pedido', raise_exception=True)
-@require_POST
-def ejecutar_sincronizacion(request: HttpRequest) -> HttpResponse:
+def solicitar_sincronizacion() -> tuple[str, str]:
     clave = 'anymarket:solicitud-sincronizacion'
     if not cache.add(clave, True, timeout=60):
-        messages.warning(request, 'Ya se solicitó una sincronización recientemente. Inténtalo en un minuto.')
+        return 'warning', 'Ya se solicitó una sincronización recientemente. Inténtalo en un minuto.'
     else:
         try:
             sincronizar_pedidos.apply_async(retry=False)
         except Exception:
             cache.delete(clave)
             logger.error('No se pudo encolar la sincronización de pedidos AnyMarket.')
-            messages.error(request, 'No se pudo iniciar la sincronización. Inténtalo nuevamente.')
+            return 'error', 'No se pudo iniciar la sincronización. Inténtalo nuevamente.'
         else:
-            messages.success(request, 'Sincronización enviada. Los pedidos se actualizarán en segundo plano.')
+            return 'success', 'Sincronización enviada. Los pedidos se actualizarán en segundo plano.'
+
+
+@login_required
+@permission_required('anymarket.change_pedido', raise_exception=True)
+@require_POST
+def ejecutar_sincronizacion(request: HttpRequest) -> HttpResponse:
+    nivel, mensaje = solicitar_sincronizacion()
+    getattr(messages, nivel)(request, mensaje)
     return redirect('anymarket:pedidos')
 
 

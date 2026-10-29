@@ -2,6 +2,30 @@
 
 Proyecto Django preparado para ASGI, Channels, Celery, Redis y PostgreSQL. Docker Compose ejecuta Django y Channels en `web`, las tareas en `worker`, el planificador en `beat`, PostgreSQL en `db` y Redis en `redis`.
 
+## Desarrollo web con Django y Astro
+
+`frontend/` contiene una primera interfaz Astro estática que consulta la API de Django por el mismo origen. Incluye inicio y cierre de sesión, pedidos con Tabulator, filtros, paginación, exportación y solicitud de sincronización. La interfaz y la integración deben verificarse con datos reales y en los dispositivos antes de sustituir las pantallas Django existentes. Los endpoints Django y sus plantillas siguen disponibles.
+
+Por ahora el desarrollo se centra en Django y Astro. Para ejecutar Astro con Django en `127.0.0.1:8000`:
+
+```bash
+cd frontend
+npm ci
+npm run dev
+```
+
+Abre `http://127.0.0.1:4321/`. Astro mantiene ese puerto fijo y su proxy de desarrollo dirige `/api/` y `/static/` a Django. Para enviar formularios, configura `DJANGO_CSRF_TRUSTED_ORIGINS=http://127.0.0.1:4321` en el entorno del proceso Django o en `.env.dev` y reinícialo. Si utilizas `localhost`, incluye también `http://localhost:4321`; `.env.dev.example` muestra ambos orígenes locales. Si usas Compose local, vuelve a crear el servicio web para que reciba las variables actualizadas. Redis e IVS SAT deben estar disponibles para el inicio de sesión. No expongas el servidor de desarrollo en producción.
+
+`compose.astro.yml` agrega un servicio `frontend` construido con Nginx; sirve Astro en el puerto interno 8080 y envía `/api/`, `/admin/`, `/static/`, `/login/`, `/logout/`, `/anymarket/` y `/ws/` a `web`. Para evaluar la configuración junto al Compose existente, ejecuta `docker compose -f docker-compose.yml -f compose.astro.yml config --quiet` con las variables del proyecto configuradas. En Dockploy hay que incluir ambos archivos de Compose y dirigir el dominio al puerto 8080 de `frontend`. El proxy exterior debe establecer HTTPS y sobrescribir `X-Forwarded-Proto`; el servicio no debe exponerse directamente. Antes de cambiar un despliegue existente, verifica que la instalación de Dockploy admita múltiples archivos Compose y prueba el enrutamiento y las sesiones en un entorno separado.
+
+### Preparación para multiplataforma
+
+La interfaz Astro se compila como archivos estáticos y usa rutas relativas `/api/`; Django conserva sesiones, CSRF, permisos y validación en el servidor. En el despliegue web, Nginx sirve ambos bajo el mismo origen. Estas decisiones mantienen la interfaz desacoplada de funciones nativas mientras se desarrolla y permiten evaluar su reutilización en futuros clientes.
+
+`frontend/src-tauri/` es una base experimental conservada para una etapa posterior. Actualmente apunta a `https://example.invalid` y plantea cargar la interfaz remota; no hay aplicaciones listas para distribuir. Antes de compilar para Linux, Windows, macOS, Android o iOS habrá que definir y verificar el mecanismo de carga, autenticación, cookies, CSRF, navegación y descargas en cada plataforma. También habrá que generar los proyectos móviles y configurar firma y publicación; iOS y macOS requieren macOS con Xcode. Por ahora no es necesario instalar Rust ni las herramientas de Tauri para trabajar en la web.
+
+Inicia Django, PostgreSQL, IVS SAT y Redis. La API utiliza Redis para limitar intentos de acceso; si hay varias instancias web deben compartir Redis. El límite usa `REMOTE_ADDR`: configura el proxy de modo que Django reciba la dirección correcta o aplica un límite equivalente en el proxy; de otro modo todos los clientes detrás del proxy compartirán el límite. Publica Django mediante HTTPS con certificado válido y configura `DJANGO_ALLOWED_HOSTS` para el dominio.
+
 ## Desarrollo local sin Docker
 
 Activa el entorno virtual e instala las dependencias:

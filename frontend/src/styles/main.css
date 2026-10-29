@@ -1,0 +1,13 @@
+@import 'tailwindcss';
+@import 'tabulator-tables/dist/css/tabulator.min.css';
+@custom-variant dark (&:where(.dark, .dark *));
+
+[hidden] { display: none !important; }
+.field { @apply block rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 dark:border-slate-600 dark:bg-slate-900 dark:text-white; }
+.button { @apply rounded-lg bg-blue-700 px-4 py-2 font-semibold text-white hover:opacity-90 focus-visible:outline-2 focus-visible:outline-blue-600 disabled:opacity-50; }
+.control { @apply rounded-lg border border-slate-300 px-3 py-2 focus-visible:outline-2 focus-visible:outline-blue-600 dark:border-slate-600; }
+.nav-button { @apply block w-full rounded-lg px-3 py-2 text-left hover:bg-slate-100 focus-visible:outline-2 focus-visible:outline-blue-600 dark:hover:bg-slate-700; }
+.dark .tabulator, .dark .tabulator .tabulator-header, .dark .tabulator-row { background: #1e293b; color: #f8fafc; border-color: #475569; }
+.dark .tabulator-row.tabulator-row-even { background: #27364b; }
+.dark .tabulator .tabulator-header .tabulator-col { background: #1e293b; border-color: #475569; }
+.dark .tabulator input, .dark .tabulator select { background: #0f172a; color: #f8fafc; }
