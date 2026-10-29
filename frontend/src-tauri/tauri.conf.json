@@ -3,10 +3,42 @@
   "productName": "INET IVS",
   "version": "0.1.0",
   "identifier": "cl.inetivs.app",
-  "build": { "beforeBuildCommand": "npm run build", "frontendDist": "../dist" },
-  "app": {
-    "windows": [{ "title": "INET IVS", "url": "https://example.invalid", "width": 1280, "height": 800 }],
-    "security": { "capabilities": [], "csp": "default-src 'self'; connect-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'" }
+  "build": {
+    "beforeBuildCommand": "npm run build",
+    "frontendDist": "../dist"
   },
-  "bundle": { "active": true, "targets": "all" }
+  "app": {
+    "windows": [
+      {
+        "label": "main",
+        "title": "INET IVS",
+        "url": "https://inet-ivs.inversierra.cl/",
+        "width": 1280,
+        "height": 820,
+        "minWidth": 960,
+        "minHeight": 640,
+        "resizable": true,
+        "center": true,
+        "visible": true
+      }
+    ],
+    "security": {
+      "csp": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self' blob: https://inet-ivs.inversierra.cl; object-src 'none'; base-uri 'self'",
+      "capabilities": ["default"]
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": "all",
+    "category": "Business",
+    "shortDescription": "Panel operativo de INET IVS",
+    "longDescription": "Acceso de escritorio al panel operativo de INET IVS para consultar los pedidos importados de AnyMarket, revisar el estado de las sincronizaciones y exportar los resultados.",
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ]
+  }
 }

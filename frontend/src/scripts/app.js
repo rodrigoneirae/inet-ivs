@@ -4,6 +4,9 @@ const $ = (selector) => document.querySelector(selector);
 const form = $('#filters');
 const THEME_KEY = 'inet-ivs:tema';
 const SIDEBAR_KEY = 'inet-ivs:menu';
+const apiMeta = document.querySelector('meta[name="api-base"]');
+const API_BASE = (apiMeta && apiMeta.content ? String(apiMeta.content) : '').replace(/\/$/, '');
+const CREDENTIALS = API_BASE ? 'include' : 'same-origin';
 let csrf = '';
 let page = 1;
 let pages = 1;
@@ -95,8 +98,12 @@ function setSidebarCollapsed(collapsed) {
   writeStorage(SIDEBAR_KEY, collapsed ? 'collapsed' : 'expanded');
 }
 
+function apiUrl(path) {
+  return `${API_BASE}${path}`;
+}
+
 async function request(path, options = {}) {
-  const response = await fetch(path, { credentials: 'same-origin', ...options });
+  const response = await fetch(apiUrl(path), { credentials: CREDENTIALS, ...options });
   if (!response.ok) {
     let message = 'No se pudo completar la operación.';
     try { message = (await response.json()).error || message; } catch { /* Respuesta no JSON. */ }

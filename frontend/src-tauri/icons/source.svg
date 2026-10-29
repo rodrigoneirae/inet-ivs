@@ -1,4 +1,11 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
-  <rect width="1024" height="1024" rx="220" fill="#2563eb"/>
-  <text x="512" y="630" text-anchor="middle" font-family="sans-serif" font-size="360" font-weight="bold" fill="#fff">IVS</text>
+  <defs>
+    <linearGradient id="marca" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#6C96F8" />
+      <stop offset="0.55" stop-color="#3263ED" />
+      <stop offset="1" stop-color="#21429C" />
+    </linearGradient>
+  </defs>
+  <rect width="1024" height="1024" rx="220" fill="url(#marca)" />
+  <text x="512" y="636" text-anchor="middle" font-family="sans-serif" font-size="360" font-weight="bold" fill="#ffffff">IVS</text>
 </svg>

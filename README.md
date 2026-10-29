@@ -26,19 +26,54 @@ Los componentes reutilizables se declaran en `@layer components` (`.btn`, `.fiel
 
 Al modificar la paleta, cambia los tokens de `@theme` y los valores de `.dark` en `main.css`, y verifica el resultado con `npm run build` en `frontend/`. Los iconos se declaran como símbolos SVG en `frontend/src/pages/index.astro` y se reutilizan con `<use href="#icon-...">`.
 
-### Preparación para multiplataforma
+### Versión de escritorio con Tauri
 
-La interfaz Astro se compila como archivos estáticos y usa rutas relativas `/api/`; Django conserva sesiones, CSRF, permisos y validación en el servidor. En el despliegue web, Nginx sirve ambos bajo el mismo origen. Estas decisiones mantienen la interfaz desacoplada de funciones nativas mientras se desarrolla y permiten evaluar su reutilización en futuros clientes.
+`frontend/src-tauri/` contiene la aplicación de escritorio Tauri v2. Existen dos formas de conectarla con el backend y conviene elegir una de forma explícita.
 
-`frontend/src-tauri/` es una base experimental. La configuración predeterminada apunta a `https://example.invalid`; para una prueba Linux con la interfaz remota, ejecuta desde `frontend/`:
+**Modo remoto (recomendado).** La ventana carga el sitio desplegado, por lo que las sesiones, el token CSRF y las llamadas a la API siguen siendo del mismo origen y no requiere cambios en Django. Es el modo que usa `frontend/src-tauri/tauri.conf.json` y el que se puede compilar hoy.
+
+**Modo empaquetado.** La aplicación incrusta el resultado de `npm run build` y llama a la API con una URL absoluta, definida en tiempo de compilación con `PUBLIC_API_BASE`:
+
+```bash
+PUBLIC_API_BASE=https://inet-ivs.inversierra.cl npm run build
+```
+
+En este modo el servidor Django debe permitir el origen de la aplicación (`tauri://localhost` en Linux y macOS, `http://tauri.localhost` en Windows) con credenciales: `django-cors-headers` con `CORS_ALLOWED_ORIGINS` y `CORS_ALLOW_CREDENTIALS=True`, `SESSION_COOKIE_SAMESITE=None` y `CSRF_COOKIE_SAMESITE=None` (ambos con `Secure=True`, por lo que la API debe publicarse con HTTPS) y ese origen en `DJANGO_CSRF_TRUSTED_ORIGINS`. Las cookies `SameSite=None` se envían a cualquier sitio, por lo que este modo requiere revisar el modelo de amenazas antes de activarlo en producción.
+
+Requisitos de compilación: Rust con `rustup` y las bibliotecas de WebKit del sistema (`libwebkit2gtk-4.1-dev`, `libgtk-3-dev`, `librsvg2-dev` y `patchelf` en Debian y Ubuntu). Desde `frontend/`:
 
 ```bash
 source "$HOME/.cargo/env"
-npm run tauri -- build --debug --no-bundle --config '{"app":{"windows":[{"title":"INET IVS","url":"https://inet-ivs.inversierra.cl/","width":1280,"height":800}]}}'
+npm run tauri -- dev      # desarrollo con recarga
+npm run tauri -- build    # ejecutable e instaladores de la plataforma actual
+```
+
+La URL de la ventana se define en `app.windows[0].url` de `frontend/src-tauri/tauri.conf.json` y puede cambiarse sin editar el archivo mediante la variable `TAURI_CONFIG` o la opción `--config`:
+
+```bash
+TAURI_CONFIG='{"app":{"windows":[{"label":"main","title":"INET IVS","url":"https://otro-sitio.example/","width":1280,"height":820,"minWidth":960,"minHeight":640,"resizable":true,"center":true}]}}' npm run tauri -- build
+```
+
+Para una prueba rápida en Linux, sin generar instaladores:
+
+```bash
+npm run tauri -- build --debug --no-bundle
 ./src-tauri/target/debug/inet-ivs
 ```
 
-Esta compilación Linux de depuración se ha verificado, pero la autenticación, cookies, CSRF, navegación y descargas aún deben probarse en la ventana Tauri. La URL de prueba se incluye en el ejecutable; no contiene credenciales. La aplicación depende de la disponibilidad del sitio remoto. Antes de distribuir en Linux, Windows, macOS, Android o iOS hay que validar cada plataforma y su proceso de empaquetado y firma; los proyectos móviles todavía deben generarse. iOS y macOS requieren macOS con Xcode. No es necesario instalar Rust ni las herramientas de Tauri para trabajar únicamente en la web.
+Los permisos de la aplicación están en `frontend/src-tauri/capabilities/default.json` y se limitan a la ventana local: el contenido remoto no obtiene acceso al IPC de Tauri porque la capacidad no declara `remote.urls`. La CSP de `tauri.conf.json` permite únicamente el origen del sitio. Si la aplicación se empaqueta con el contenido local, esa misma capacidad cubre el contenido incluido en el ejecutable.
+
+Los iconos de todas las plataformas se generan desde `frontend/src-tauri/icons/source.svg`:
+
+```bash
+npm run tauri -- icon src-tauri/icons/source.svg
+```
+
+La compilación Linux de depuración se ha verificado; la autenticación, las cookies, la navegación y las descargas deben probarse en la ventana real antes de distribuir. Cada plataforma exige su propio empaquetado y firma, y macOS e iOS requieren Xcode. Los proyectos móviles todavía deben generarse con `npm run tauri -- android init` e `ios init`, y su autenticación y ciclo de vida deben validarse aparte. No es necesario instalar Rust ni las herramientas de Tauri para trabajar únicamente en la web.
+
+### Preparación para multiplataforma
+
+La interfaz Astro se compila como archivos estáticos y usa rutas relativas `/api/`; Django conserva sesiones, CSRF, permisos y validación en el servidor. En el despliegue web, Nginx sirve ambos bajo el mismo origen. Estas decisiones mantienen la interfaz desacoplada de funciones nativas mientras se desarrolla y permiten evaluar su reutilización en futuros clientes.
 
 Inicia Django, PostgreSQL, IVS SAT y Redis. La API utiliza Redis para limitar intentos de acceso; si hay varias instancias web deben compartir Redis. El límite usa `REMOTE_ADDR`: configura el proxy de modo que Django reciba la dirección correcta o aplica un límite equivalente en el proxy; de otro modo todos los clientes detrás del proxy compartirán el límite. Publica Django mediante HTTPS con certificado válido y configura `DJANGO_ALLOWED_HOSTS` para el dominio.
 

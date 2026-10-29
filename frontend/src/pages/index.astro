@@ -1,5 +1,7 @@
 ---
 import '../styles/main.css';
+
+const apiBase = (import.meta.env.PUBLIC_API_BASE ?? '').replace(/\/$/, '');
 ---
 <!doctype html>
 <html lang="es">
@@ -9,6 +11,7 @@ import '../styles/main.css';
     <meta name="color-scheme" content="light dark" />
     <meta name="theme-color" content="#2563eb" />
     <meta name="description" content="Panel operativo de INET IVS" />
+    <meta name="api-base" content={apiBase} />
     <title>INET IVS</title>
   </head>
   <body>
