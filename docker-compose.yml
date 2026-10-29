@@ -1,4 +1,12 @@
 services:
+  frontend:
+    build:
+      context: ./frontend
+    restart: unless-stopped
+    depends_on:
+      web:
+        condition: service_healthy
+
   web:
     build: .
     image: ${COMPOSE_PROJECT_NAME:-inet-ivs}-app
