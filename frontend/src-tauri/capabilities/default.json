@@ -1,7 +1,7 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
-  "description": "Permisos de la ventana principal de INET IVS. No incluye orígenes remotos, por lo que el contenido cargado desde el sitio web no accede al IPC de Tauri.",
+  "description": "Permisos del contenido incluido en la aplicación. El contenido remoto no recibe acceso al IPC de Tauri.",
   "windows": ["main"],
-  "permissions": ["core:default"]
+  "permissions": ["core:default", "allow-guardar-archivo"]
 }

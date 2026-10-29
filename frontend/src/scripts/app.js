@@ -102,6 +102,40 @@ function apiUrl(path) {
   return `${API_BASE}${path}`;
 }
 
+function enTauri() {
+  return Boolean(window.__TAURI__ && window.__TAURI__.core && window.__TAURI__.core.invoke);
+}
+
+function aBase64(buffer) {
+  const bytes = new Uint8Array(buffer);
+  let binario = '';
+  const bloque = 0x8000;
+  for (let indice = 0; indice < bytes.length; indice += bloque) {
+    binario += String.fromCharCode.apply(null, bytes.subarray(indice, indice + bloque));
+  }
+  return btoa(binario);
+}
+
+/**
+ * Guarda el archivo generado. En la aplicación de escritorio el visor web no
+ * puede descargar por sí solo, así que los bytes se envían a la aplicación
+ * nativa, que muestra el diálogo de guardado.
+ */
+async function guardarArchivo(nombre, blob) {
+  if (enTauri()) {
+    const contenido = aBase64(await blob.arrayBuffer());
+    const ruta = await window.__TAURI__.core.invoke('guardar-archivo', { nombre, contenido });
+    return { cancelado: ruta === null, ruta };
+  }
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = nombre;
+  link.click();
+  window.setTimeout(() => URL.revokeObjectURL(url), 60000);
+  return { cancelado: false, ruta: null };
+}
+
 async function request(path, options = {}) {
   const response = await fetch(apiUrl(path), { credentials: CREDENTIALS, ...options });
   if (!response.ok) {
@@ -313,11 +347,9 @@ $('#export').addEventListener('click', async () => {
   try {
     const response = await request(`/api/v1/pedidos/exportar/?${applied}`);
     const blob = await response.blob();
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url; link.download = 'pedidos.xlsx'; link.click();
-    window.setTimeout(() => URL.revokeObjectURL(url), 60000);
-    toast('Archivo generado correctamente.', 'success');
+    const resultado = await guardarArchivo('pedidos.xlsx', blob);
+    if (resultado.cancelado) toast('Se canceló el guardado del archivo.', 'info');
+    else toast(resultado.ruta ? `Archivo guardado en ${resultado.ruta}` : 'Archivo generado correctamente.', 'success');
   } catch (error) { toast(error.message, 'error'); }
 });
 

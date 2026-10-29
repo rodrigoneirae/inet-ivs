@@ -1,0 +1,14 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "sitio",
+  "description": "Permisos del sitio web cargado en la ventana de escritorio: únicamente puede pedir el guardado del archivo de exportación. El servidor de desarrollo local se incluye para probar la aplicación sin desplegar.",
+  "windows": ["main"],
+  "permissions": ["allow-guardar-archivo"],
+  "remote": {
+    "urls": [
+      "https://inet-ivs.inversierra.cl/*",
+      "http://127.0.0.1:4321/*",
+      "http://localhost:4321/*"
+    ]
+  }
+}

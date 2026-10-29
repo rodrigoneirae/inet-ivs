@@ -5,9 +5,12 @@
   "identifier": "cl.inetivs.app",
   "build": {
     "beforeBuildCommand": "npm run build",
+    "beforeDevCommand": "npm run dev",
+    "devUrl": "http://127.0.0.1:4321",
     "frontendDist": "../dist"
   },
   "app": {
+    "withGlobalTauri": true,
     "windows": [
       {
         "label": "main",

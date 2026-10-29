@@ -48,6 +48,16 @@ npm run tauri -- dev      # desarrollo con recarga
 npm run tauri -- build    # ejecutable e instaladores de la plataforma actual
 ```
 
+`npm run tauri -- dev` levanta el servidor de Astro en `127.0.0.1:4321` (`beforeDevCommand`) y abre la ventana contra esa URL, de modo que el flujo de la aplicación de escritorio se prueba sin desplegar.
+
+#### Descargas de archivos
+
+El visor web de Tauri descarta las descargas que no gestiona la aplicación, por lo que el botón de exportar Excel no producía ningún archivo. La interfaz detecta la aplicación de escritorio (`window.__TAURI__`), codifica el archivo en base64 y llama al comando nativo `guardar-archivo`, que muestra el diálogo de guardado y escribe el archivo. En el navegador se mantiene la descarga habitual mediante un enlace temporal.
+
+El comando vive en `frontend/src-tauri/src/lib.rs` y está declarado en el manifiesto de la aplicación (`frontend/src-tauri/build.rs`) para que el ACL lo controle. Solo responde a los orígenes autorizados: el sitio desplegado, la aplicación empaquetada y el servidor de desarrollo local. La capacidad `frontend/src-tauri/capabilities/sitio.json` concede ese permiso al contenido remoto y `frontend/src-tauri/capabilities/default.json` lo concede al contenido incluido en el ejecutable; ninguna de las dos habilita el resto de la API de Tauri para el contenido remoto.
+
+Como la aplicación en modo remoto carga el sitio desplegado, el arreglo requiere desplegar la versión nueva de la interfaz; hasta entonces la exportación sigue fallando en la ventana de escritorio.
+
 La URL de la ventana se define en `app.windows[0].url` de `frontend/src-tauri/tauri.conf.json` y puede cambiarse sin editar el archivo mediante la variable `TAURI_CONFIG` o la opción `--config`:
 
 ```bash
