@@ -2,6 +2,8 @@ import { TabulatorFull as Tabulator } from 'tabulator-tables';
 
 const $ = (selector) => document.querySelector(selector);
 const form = $('#filters');
+const THEME_KEY = 'inet-ivs:tema';
+const SIDEBAR_KEY = 'inet-ivs:menu';
 let csrf = '';
 let page = 1;
 let pages = 1;
@@ -12,12 +14,85 @@ let estado = '';
 let table;
 let applied = new URLSearchParams();
 
-function toast(message) {
+function readStorage(key) {
+  try {
+    return window.localStorage ? window.localStorage.getItem(key) : null;
+  } catch {
+    return null;
+  }
+}
+
+function writeStorage(key, value) {
+  try {
+    if (window.localStorage) window.localStorage.setItem(key, value);
+  } catch {
+    /* El navegador puede bloquear el almacenamiento local. */
+  }
+}
+
+function toast(message, variant = 'info') {
   const element = $('#toast');
-  element.textContent = message;
+  if (!element) return;
+  const text = $('#toast-message');
+  if (text) text.textContent = message;
+  const icon = $('#toast-icon');
+  if (icon) icon.setAttribute('href', { success: '#icon-check', error: '#icon-alerta', info: '#icon-info' }[variant] || '#icon-info');
+  element.dataset.variant = variant;
   element.hidden = false;
   window.clearTimeout(toast.timer);
   toast.timer = window.setTimeout(() => { element.hidden = true; }, 6000);
+}
+
+function prefersDark() {
+  const media = window.matchMedia ? window.matchMedia('(prefers-color-scheme: dark)') : null;
+  return Boolean(media && media.matches);
+}
+
+function applyTheme(theme) {
+  document.documentElement.classList.toggle('dark', theme === 'dark');
+  const meta = document.querySelector('meta[name="theme-color"]');
+  if (meta) meta.setAttribute('content', theme === 'dark' ? '#0f172a' : '#2563eb');
+}
+
+function currentTheme() {
+  const stored = readStorage(THEME_KEY);
+  if (stored === 'light' || stored === 'dark') return stored;
+  return prefersDark() ? 'dark' : 'light';
+}
+
+function isDesktop() {
+  const media = window.matchMedia ? window.matchMedia('(min-width: 768px)') : null;
+  return Boolean(media && media.matches);
+}
+
+function syncBodyScroll() {
+  if (!document.body) return;
+  const sidebar = $('#sidebar');
+  const drawerOpen = Boolean(sidebar) && sidebar.dataset.state === 'open' && !isDesktop();
+  document.body.style.overflow = drawerOpen ? 'hidden' : '';
+}
+
+function setSidebar(open) {
+  const sidebar = $('#sidebar');
+  if (!sidebar) return;
+  sidebar.dataset.state = open ? 'open' : 'closed';
+  const backdrop = $('#sidebar-backdrop');
+  if (backdrop) backdrop.hidden = !open;
+  const toggle = $('#menu-toggle');
+  if (toggle) toggle.setAttribute('aria-expanded', String(open));
+  syncBodyScroll();
+}
+
+function setSidebarCollapsed(collapsed) {
+  const sidebar = $('#sidebar');
+  if (!sidebar) return;
+  sidebar.dataset.collapsed = String(collapsed);
+  const button = $('#sidebar-collapse');
+  if (button) {
+    button.setAttribute('aria-expanded', String(!collapsed));
+    button.setAttribute('aria-label', collapsed ? 'Expandir el menú' : 'Contraer el menú');
+  }
+  writeStorage(SIDEBAR_KEY, collapsed ? 'collapsed' : 'expanded');
 }
 
 async function request(path, options = {}) {
@@ -39,22 +114,44 @@ async function post(path, data = {}) {
   return response.json();
 }
 
+function initials(name) {
+  const parts = String(name || '').trim().split(/\s+/).filter(Boolean);
+  if (!parts.length) return '–';
+  return (parts[0][0] + (parts[1] ? parts[1][0] : '')).toUpperCase();
+}
+
+function setCurrentNav(current) {
+  for (const selector of ['#nav-home', '#nav-orders']) {
+    const element = $(selector);
+    if (!element) continue;
+    if (selector === current) element.setAttribute('aria-current', 'page');
+    else element.removeAttribute('aria-current');
+  }
+}
+
 function displaySession(data) {
   csrf = data.csrf;
   $('#login-screen').hidden = Boolean(data.usuario);
   $('#app').hidden = !data.usuario;
   if (data.usuario) {
     $('#username').textContent = data.usuario;
+    const avatar = $('#user-initials');
+    if (avatar) avatar.textContent = initials(data.usuario);
     $('#greeting').textContent = `Hola, ${data.usuario}`;
     $('#nav-orders').hidden = !data.puede_ver_pedidos;
+    const hero = $('#hero-orders');
+    if (hero) hero.hidden = !data.puede_ver_pedidos;
     $('#sync').hidden = !data.puede_sincronizar;
     if (window.location.pathname === '/pedidos/' && data.puede_ver_pedidos) {
       $('#home').hidden = true;
       $('#orders').hidden = false;
       $('#page-title').textContent = 'Pedidos AnyMarket';
+      setCurrentNav('#nav-orders');
       loadOrders();
     } else if (window.location.hash === '#pedidos' && data.puede_ver_pedidos) {
       $('#nav-orders').click();
+    } else {
+      setCurrentNav('#nav-home');
     }
   }
 }
@@ -91,8 +188,8 @@ function filterHeader(field, values, selected) {
 
 function renderTable(data) {
   const columns = [
-    ['Canal', 'canal'], ['OC', 'pedido'], ['Cliente', 'cliente'], ['Fecha', 'fecha'],
-    ['Ítems', 'items'], ['Venta', 'total'], ['Status', 'estado'], ['Estado', 'fulfillment'],
+    ['Canal', 'canal', 140], ['OC', 'pedido', 120], ['Cliente', 'cliente', 170], ['Fecha', 'fecha', 140],
+    ['Ítems', 'items', 80], ['Venta', 'total', 110], ['Status', 'estado', 110], ['Estado', 'fulfillment', 110],
   ];
   if (table) table.destroy();
   table = new Tabulator('#orders-table', {
@@ -112,9 +209,9 @@ function renderTable(data) {
         loadOrders();
       },
     },
-    columns: columns.map(([label, field]) => ({
+    columns: columns.map(([label, field, minWidth]) => ({
       title: `${label}${order === field ? (direction === 'asc' ? ' ▲' : ' ▼') : ''}`,
-      field, minWidth: field === 'cliente' ? 180 : 120,
+      field, minWidth,
       ...(field === 'canal' ? { headerFilter: filterHeader(field, data.canales, canal), headerFilterFunc: () => true } : {}),
       ...(field === 'estado' ? { headerFilter: filterHeader(field, data.estados, estado), headerFilterFunc: () => true } : {}),
     })),
@@ -123,6 +220,7 @@ function renderTable(data) {
 
 function renderSyncStatus(data) {
   const container = $('#sync-status');
+  if (!container) return;
   container.replaceChildren();
   const format = value => value ? new Intl.DateTimeFormat('es-CL', {
     timeZone: data.zona_horaria, dateStyle: 'short', timeStyle: 'medium',
@@ -130,9 +228,10 @@ function renderSyncStatus(data) {
   for (const [key, label] of [['pedidos', 'Sincronización'], ['reconciliacion', 'Reconciliación']]) {
     const state = data.sincronizaciones[key] || {};
     const item = document.createElement('div');
-    item.textContent = `${label}: última ejecución correcta: ${format(state.ultimo_exito)}`;
+    item.className = state.ultimo_error ? 'chip chip-danger' : 'chip chip-success';
+    item.textContent = `${label}: ${format(state.ultimo_exito)}`;
     if (state.ultimo_error) {
-      const error = document.createElement('p');
+      const error = document.createElement('span');
       error.textContent = `Error: ${state.ultimo_error}${state.ultimo_error_en ? ` (${format(state.ultimo_error_en)})` : ''}`;
       item.append(error);
     }
@@ -154,7 +253,10 @@ async function loadOrders(next = 1, keep = false) {
     $('#next').disabled = page >= pages;
     renderSyncStatus(data);
     renderTable(data);
-  } catch (error) { toast(error.message); }
+  } catch (error) {
+    $('#pagination').textContent = 'Sin datos';
+    toast(error.message, 'error');
+  }
 }
 
 $('#login-form').addEventListener('submit', async event => {
@@ -165,20 +267,41 @@ $('#login-form').addEventListener('submit', async event => {
     const result = await post('/api/v1/ingresar/', Object.fromEntries(formData));
     loginForm.reset();
     displaySession(result);
-  } catch (error) { toast(error.message); }
+  } catch (error) { toast(error.message, 'error'); }
 });
 $('#logout').addEventListener('click', async () => {
   try { const data = await post('/api/v1/salir/'); displaySession({ ...data, usuario: null }); }
-  catch (error) { toast(error.message); }
+  catch (error) { toast(error.message, 'error'); }
 });
 $('#nav-home').addEventListener('click', () => { window.location.assign('/'); });
 $('#nav-orders').addEventListener('click', () => { window.location.assign('/pedidos/'); });
-$('#menu-toggle').addEventListener('click', event => { const side = $('#sidebar'); side.hidden = !side.hidden; event.currentTarget.setAttribute('aria-expanded', String(!side.hidden)); });
-$('#theme-toggle').addEventListener('click', () => { document.documentElement.classList.toggle('dark'); });
+$('#hero-orders').addEventListener('click', () => { window.location.assign('/pedidos/'); });
+$('#menu-toggle').addEventListener('click', () => {
+  const sidebar = $('#sidebar');
+  setSidebar(sidebar.dataset.state !== 'open');
+});
+$('#sidebar-backdrop').addEventListener('click', () => setSidebar(false));
+$('#sidebar-collapse').addEventListener('click', () => {
+  const sidebar = $('#sidebar');
+  setSidebarCollapsed(sidebar.dataset.collapsed !== 'true');
+});
+$('#theme-toggle').addEventListener('click', () => {
+  const theme = currentTheme() === 'dark' ? 'light' : 'dark';
+  writeStorage(THEME_KEY, theme);
+  applyTheme(theme);
+});
+$('#toast-close').addEventListener('click', () => { $('#toast').hidden = true; });
+document.addEventListener('keydown', event => {
+  if (event.key === 'Escape') {
+    const sidebar = $('#sidebar');
+    if (sidebar.dataset.state === 'open') setSidebar(false);
+  }
+});
+if (window.addEventListener) window.addEventListener('resize', syncBodyScroll);
 form.addEventListener('submit', event => { event.preventDefault(); loadOrders(); });
 $('#previous').addEventListener('click', () => loadOrders(page - 1, true));
 $('#next').addEventListener('click', () => loadOrders(page + 1, true));
-$('#sync').addEventListener('click', async () => { try { toast((await post('/api/v1/pedidos/sincronizar/')).mensaje); } catch (error) { toast(error.message); } });
+$('#sync').addEventListener('click', async () => { try { toast((await post('/api/v1/pedidos/sincronizar/')).mensaje, 'success'); } catch (error) { toast(error.message, 'error'); } });
 $('#export').addEventListener('click', async () => {
   try {
     const response = await request(`/api/v1/pedidos/exportar/?${applied}`);
@@ -187,13 +310,16 @@ $('#export').addEventListener('click', async () => {
     const link = document.createElement('a');
     link.href = url; link.download = 'pedidos.xlsx'; link.click();
     window.setTimeout(() => URL.revokeObjectURL(url), 60000);
-  } catch (error) { toast(error.message); }
+    toast('Archivo generado correctamente.', 'success');
+  } catch (error) { toast(error.message, 'error'); }
 });
 
-if (window.matchMedia('(prefers-color-scheme: dark)').matches) document.documentElement.classList.add('dark');
+setSidebar(false);
+setSidebarCollapsed(readStorage(SIDEBAR_KEY) === 'collapsed');
+applyTheme(currentTheme());
 if (window.Litepicker) {
   for (const input of form.querySelectorAll('input[type="date"]')) {
     new window.Litepicker({ element: input, singleMode: true, format: 'YYYY-MM-DD', lang: 'es-ES' });
   }
 }
-request('/api/v1/sesion/').then(response => response.json()).then(displaySession).catch(error => toast(error.message));
+request('/api/v1/sesion/').then(response => response.json()).then(displaySession).catch(error => toast(error.message, 'error'));

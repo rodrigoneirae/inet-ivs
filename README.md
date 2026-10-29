@@ -18,6 +18,14 @@ Abre `http://127.0.0.1:4321/`. Astro mantiene ese puerto fijo y su proxy de desa
 
 `docker-compose.yml` incluye el servicio `frontend` construido con Nginx: sirve los recursos `/_astro/` y envía las páginas, API, administración y WebSockets a `web`. La imagen Django también compila Astro para entregar el HTML; ambas imágenes deben construirse del mismo commit y lockfile. Para validar la configuración ejecuta `docker compose -f docker-compose.yml config --quiet` con las variables del proyecto configuradas. En Dockploy usa ese archivo y dirige el dominio al puerto 8080 de `frontend`. El proxy exterior debe establecer HTTPS y sobrescribir `X-Forwarded-Proto`; el servicio no debe exponerse directamente. Prueba el enrutamiento y las sesiones en un entorno separado antes de cambiar un despliegue existente.
 
+### Sistema de diseño
+
+`frontend/src/styles/main.css` define el sistema de diseño con Tailwind CSS v4 mediante tokens `@theme` en OKLCH. La paleta base se organiza en cuatro familias: `brand` (índigo, acciones principales), `success` (verde), `warning` (ámbar) y `danger` (rojo). Sobre ellas se declaran los tokens semánticos que consume la interfaz: `canvas`, `surface`, `ink`, `line`, `primary` y sus equivalentes. Los tokens semánticos se redefinen dentro de `.dark`, de modo que los componentes no dependen de variantes `dark:` para superficies y texto.
+
+Los componentes reutilizables se declaran en `@layer components` (`.btn`, `.field`, `.card`, `.chip`, `.nav-link`, `.toast`, entre otros) y las capas de terceros se alinean con la misma paleta: Tabulator usa las variables del tema para cabecera, filas y filtros, y Litepicker recibe sus variables `--litepicker-*` desde los tokens. El tema elegido y el estado del menú lateral se guardan en `localStorage`; en la primera visita se respeta `prefers-color-scheme`.
+
+Al modificar la paleta, cambia los tokens de `@theme` y los valores de `.dark` en `main.css`, y verifica el resultado con `npm run build` en `frontend/`. Los iconos se declaran como símbolos SVG en `frontend/src/pages/index.astro` y se reutilizan con `<use href="#icon-...">`.
+
 ### Preparación para multiplataforma
 
 La interfaz Astro se compila como archivos estáticos y usa rutas relativas `/api/`; Django conserva sesiones, CSRF, permisos y validación en el servidor. En el despliegue web, Nginx sirve ambos bajo el mismo origen. Estas decisiones mantienen la interfaz desacoplada de funciones nativas mientras se desarrolla y permiten evaluar su reutilización en futuros clientes.

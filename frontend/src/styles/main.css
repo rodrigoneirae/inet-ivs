@@ -2,12 +2,526 @@
 @import 'tabulator-tables/dist/css/tabulator.min.css';
 @custom-variant dark (&:where(.dark, .dark *));
 
+/*
+  Sistema de diseño INET IVS.
+  Paleta base en OKLCH (mejor perceptibilidad y escalado uniforme) con
+  familias brand (índigo), success (verde), warning (ámbar) y danger (rojo).
+  Los tokens semánticos (canvas, surface, ink, line, primary...) se redefinen
+  en el tema oscuro, por lo que los componentes no dependen de variantes dark:.
+*/
+
+@theme {
+  --font-sans: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', monospace;
+
+  --color-brand-50: oklch(97.2% 0.014 265);
+  --color-brand-100: oklch(93.6% 0.032 265);
+  --color-brand-200: oklch(87.8% 0.062 265);
+  --color-brand-300: oklch(78.6% 0.104 265);
+  --color-brand-400: oklch(68.7% 0.152 265);
+  --color-brand-500: oklch(60.4% 0.196 265);
+  --color-brand-600: oklch(55.2% 0.214 265);
+  --color-brand-700: oklch(48.6% 0.188 265);
+  --color-brand-800: oklch(41.4% 0.152 265);
+  --color-brand-900: oklch(35.4% 0.121 265);
+  --color-brand-950: oklch(26.6% 0.086 265);
+
+  --color-success-50: oklch(97% 0.021 152);
+  --color-success-100: oklch(94% 0.05 152);
+  --color-success-200: oklch(88.5% 0.09 152);
+  --color-success-300: oklch(80% 0.14 152);
+  --color-success-400: oklch(71% 0.17 152);
+  --color-success-500: oklch(64% 0.18 152);
+  --color-success-600: oklch(57.6% 0.168 152);
+  --color-success-700: oklch(49.5% 0.145 152);
+  --color-success-800: oklch(42.5% 0.118 152);
+  --color-success-900: oklch(37% 0.096 152);
+  --color-success-950: oklch(26.5% 0.066 152);
+
+  --color-warning-50: oklch(98% 0.024 80);
+  --color-warning-100: oklch(95.5% 0.06 80);
+  --color-warning-200: oklch(91% 0.11 80);
+  --color-warning-300: oklch(85% 0.16 78);
+  --color-warning-400: oklch(79% 0.17 70);
+  --color-warning-500: oklch(73% 0.16 62);
+  --color-warning-600: oklch(66.5% 0.155 55);
+  --color-warning-700: oklch(57% 0.135 48);
+  --color-warning-800: oklch(47.5% 0.11 45);
+  --color-warning-900: oklch(40% 0.09 45);
+  --color-warning-950: oklch(28% 0.06 45);
+
+  --color-danger-50: oklch(97.2% 0.018 25);
+  --color-danger-100: oklch(93.6% 0.043 25);
+  --color-danger-200: oklch(88% 0.08 25);
+  --color-danger-300: oklch(80.5% 0.13 25);
+  --color-danger-400: oklch(71% 0.18 25);
+  --color-danger-500: oklch(64% 0.21 25);
+  --color-danger-600: oklch(57.7% 0.212 25);
+  --color-danger-700: oklch(50.5% 0.19 25);
+  --color-danger-800: oklch(43.5% 0.16 25);
+  --color-danger-900: oklch(37.5% 0.13 25);
+  --color-danger-950: oklch(26.5% 0.09 25);
+
+  --color-canvas: oklch(98.6% 0.004 250);
+  --color-canvas-alt: oklch(96.4% 0.006 250);
+  --color-surface: oklch(100% 0 0);
+  --color-surface-muted: oklch(97.2% 0.005 250);
+  --color-surface-strong: oklch(94.6% 0.008 250);
+  --color-ink: oklch(21.5% 0.035 265);
+  --color-ink-muted: oklch(50.5% 0.028 265);
+  --color-ink-subtle: oklch(63% 0.022 265);
+  --color-ink-inverted: oklch(98.6% 0.004 250);
+  --color-line: oklch(91.8% 0.009 255);
+  --color-line-strong: oklch(85% 0.014 255);
+
+  --color-primary: oklch(55.2% 0.214 265);
+  --color-primary-hover: oklch(48.6% 0.188 265);
+  --color-primary-ink: oklch(45.5% 0.18 265);
+  --color-primary-soft: oklch(96.2% 0.022 265);
+  --color-primary-contrast: oklch(100% 0 0);
+  --color-ring: oklch(60.4% 0.196 265);
+
+  --color-success: oklch(57.6% 0.168 152);
+  --color-success-hover: oklch(49.5% 0.145 152);
+  --color-success-ink: oklch(43.5% 0.13 152);
+  --color-success-soft: oklch(96.4% 0.038 152);
+  --color-success-contrast: oklch(100% 0 0);
+
+  --color-warning: oklch(66.5% 0.155 55);
+  --color-warning-hover: oklch(57% 0.135 48);
+  --color-warning-ink: oklch(50% 0.12 45);
+  --color-warning-soft: oklch(97% 0.045 75);
+  --color-warning-contrast: oklch(24% 0.05 45);
+
+  --color-danger: oklch(57.7% 0.212 25);
+  --color-danger-hover: oklch(50.5% 0.19 25);
+  --color-danger-ink: oklch(48% 0.18 25);
+  --color-danger-soft: oklch(96.2% 0.035 25);
+  --color-danger-contrast: oklch(100% 0 0);
+
+  --radius-xs: 0.375rem;
+  --radius-sm: 0.5rem;
+  --radius-md: 0.625rem;
+  --radius-lg: 0.875rem;
+  --radius-xl: 1.125rem;
+  --radius-2xl: 1.375rem;
+  --radius-3xl: 1.75rem;
+
+  --shadow-card: 0 1px 2px 0 oklch(21.5% 0.035 265 / 0.04), 0 8px 24px -14px oklch(21.5% 0.035 265 / 0.18);
+  --shadow-elevated: 0 2px 6px -2px oklch(21.5% 0.035 265 / 0.08), 0 18px 40px -20px oklch(21.5% 0.035 265 / 0.28);
+  --shadow-pop: 0 24px 60px -24px oklch(21.5% 0.035 265 / 0.35);
+  --shadow-brand: 0 10px 24px -12px oklch(55.2% 0.214 265 / 0.55);
+
+  --animate-fade-in: fade-in 0.25s ease-out;
+  --animate-slide-up: slide-up 0.4s cubic-bezier(0.22, 1, 0.36, 1);
+  --animate-scale-in: scale-in 0.18s ease-out;
+
+  @keyframes fade-in {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+  @keyframes slide-up {
+    from { opacity: 0; transform: translateY(0.75rem); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes scale-in {
+    from { opacity: 0; transform: scale(0.96); }
+    to { opacity: 1; transform: scale(1); }
+  }
+}
+
+.dark {
+  --color-canvas: oklch(18.6% 0.028 265);
+  --color-canvas-alt: oklch(21.8% 0.03 265);
+  --color-surface: oklch(24.6% 0.032 262);
+  --color-surface-muted: oklch(28.4% 0.034 262);
+  --color-surface-strong: oklch(33.5% 0.036 262);
+  --color-ink: oklch(97.2% 0.006 250);
+  --color-ink-muted: oklch(74.5% 0.02 255);
+  --color-ink-subtle: oklch(62% 0.02 258);
+  --color-ink-inverted: oklch(18.6% 0.028 265);
+  --color-line: oklch(32.5% 0.032 262);
+  --color-line-strong: oklch(41% 0.036 262);
+
+  --color-primary: oklch(72% 0.155 265);
+  --color-primary-hover: oklch(78% 0.135 265);
+  --color-primary-ink: oklch(85% 0.085 265);
+  --color-primary-soft: oklch(30% 0.062 265);
+  --color-primary-contrast: oklch(19% 0.035 265);
+  --color-ring: oklch(72% 0.155 265);
+
+  --color-success: oklch(74% 0.16 152);
+  --color-success-hover: oklch(80% 0.14 152);
+  --color-success-ink: oklch(86% 0.105 152);
+  --color-success-soft: oklch(28% 0.05 152);
+  --color-success-contrast: oklch(19% 0.035 265);
+
+  --color-warning: oklch(80% 0.14 75);
+  --color-warning-hover: oklch(85% 0.12 80);
+  --color-warning-ink: oklch(88% 0.095 80);
+  --color-warning-soft: oklch(30% 0.052 70);
+  --color-warning-contrast: oklch(22% 0.05 45);
+
+  --color-danger: oklch(70% 0.17 25);
+  --color-danger-hover: oklch(76% 0.15 25);
+  --color-danger-ink: oklch(86% 0.09 25);
+  --color-danger-soft: oklch(29% 0.07 25);
+  --color-danger-contrast: oklch(19% 0.035 265);
+
+  --shadow-card: 0 1px 2px 0 oklch(8% 0.02 265 / 0.4), 0 10px 30px -16px oklch(8% 0.02 265 / 0.7);
+  --shadow-elevated: 0 2px 8px -2px oklch(8% 0.02 265 / 0.5), 0 22px 45px -22px oklch(8% 0.02 265 / 0.85);
+  --shadow-pop: 0 28px 65px -26px oklch(8% 0.02 265 / 0.9);
+  --shadow-brand: 0 10px 26px -14px oklch(72% 0.155 265 / 0.55);
+}
+
 [hidden] { display: none !important; }
-.field { @apply block rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 dark:border-slate-600 dark:bg-slate-900 dark:text-white; }
-.button { @apply rounded-lg bg-blue-700 px-4 py-2 font-semibold text-white hover:opacity-90 focus-visible:outline-2 focus-visible:outline-blue-600 disabled:opacity-50; }
-.control { @apply rounded-lg border border-slate-300 px-3 py-2 focus-visible:outline-2 focus-visible:outline-blue-600 dark:border-slate-600; }
-.nav-button { @apply block w-full rounded-lg px-3 py-2 text-left hover:bg-slate-100 focus-visible:outline-2 focus-visible:outline-blue-600 dark:hover:bg-slate-700; }
-.dark .tabulator, .dark .tabulator .tabulator-header, .dark .tabulator-row { background: #1e293b; color: #f8fafc; border-color: #475569; }
-.dark .tabulator-row.tabulator-row-even { background: #27364b; }
-.dark .tabulator .tabulator-header .tabulator-col { background: #1e293b; border-color: #475569; }
-.dark .tabulator input, .dark .tabulator select { background: #0f172a; color: #f8fafc; }
+
+@layer base {
+  html {
+    -webkit-text-size-adjust: 100%;
+    scroll-behavior: smooth;
+  }
+
+  body {
+    @apply bg-canvas font-sans text-ink antialiased;
+  }
+
+  :focus-visible {
+    @apply outline-2 outline-offset-2 outline-primary;
+  }
+
+  ::selection {
+    background-color: color-mix(in oklab, var(--color-primary) 25%, transparent);
+  }
+}
+
+@layer components {
+  .skip-link {
+    @apply sr-only focus:not-sr-only focus:fixed focus:top-4 focus:left-4 focus:z-100 focus:rounded-lg focus:bg-primary focus:px-4 focus:py-2 focus:text-sm focus:font-semibold focus:text-primary-contrast focus:shadow-elevated;
+  }
+
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold transition-[background-color,color,box-shadow,transform] duration-150 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary disabled:pointer-events-none disabled:opacity-50;
+  }
+
+  .btn-primary {
+    @apply bg-primary text-primary-contrast shadow-brand hover:bg-primary-hover active:translate-y-px;
+  }
+
+  .btn-secondary {
+    @apply border border-line bg-surface text-ink hover:border-line-strong hover:bg-surface-muted;
+  }
+
+  .btn-soft {
+    @apply bg-primary-soft text-primary-ink hover:bg-primary-soft/70;
+  }
+
+  .btn-ghost {
+    @apply text-ink-muted hover:bg-surface-muted hover:text-ink;
+  }
+
+  .btn-danger {
+    @apply bg-danger text-danger-contrast hover:bg-danger-hover active:translate-y-px;
+  }
+
+  .btn-success {
+    @apply bg-success text-success-contrast hover:bg-success-hover active:translate-y-px;
+  }
+
+  .btn-sm {
+    @apply rounded-md px-3 py-1.5 text-xs;
+  }
+
+  .icon-btn {
+    @apply inline-flex size-9 shrink-0 items-center justify-center rounded-lg text-ink-muted transition-colors hover:bg-surface-muted hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary;
+  }
+
+  .field {
+    @apply w-full rounded-lg border border-line bg-surface px-3 py-2 text-sm text-ink transition-colors placeholder:text-ink-subtle hover:border-line-strong focus:border-primary focus:outline-none focus:ring-4 focus:ring-primary/15 disabled:cursor-not-allowed disabled:opacity-60;
+  }
+
+  .field-label {
+    @apply mb-1.5 block text-xs font-semibold uppercase tracking-wide text-ink-muted;
+  }
+
+  .card {
+    @apply rounded-xl border border-line bg-surface shadow-card;
+  }
+
+  .card-body {
+    @apply p-5 md:p-6;
+  }
+
+  .card-title {
+    @apply text-base font-semibold tracking-tight text-ink;
+  }
+
+  .card-subtitle {
+    @apply mt-1 text-sm text-ink-muted;
+  }
+
+  .chip {
+    @apply inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium;
+  }
+
+  .chip-neutral {
+    @apply border-line bg-surface-muted text-ink-muted;
+  }
+
+  .chip-success {
+    @apply border-success/30 bg-success-soft text-success-ink;
+  }
+
+  .chip-warning {
+    @apply border-warning/30 bg-warning-soft text-warning-ink;
+  }
+
+  .chip-danger {
+    @apply border-danger/30 bg-danger-soft text-danger-ink;
+  }
+
+  .chip-primary {
+    @apply border-primary/25 bg-primary-soft text-primary-ink;
+  }
+
+  .nav-link {
+    @apply flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-ink-muted transition-colors hover:bg-surface-muted hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary;
+  }
+
+  .nav-link[aria-current='page'] {
+    @apply bg-primary-soft text-primary-ink hover:bg-primary-soft hover:text-primary-ink;
+  }
+
+  .nav-link[aria-current='page'] .nav-icon {
+    @apply text-primary;
+  }
+
+  .stat-card {
+    @apply rounded-xl border border-line bg-surface p-5 shadow-card transition-shadow hover:shadow-elevated;
+  }
+
+  .toast {
+    @apply fixed right-4 bottom-4 z-100 flex w-[min(24rem,calc(100vw-2rem))] items-start gap-3 rounded-xl border border-line bg-surface p-4 text-sm text-ink shadow-pop;
+    animation: var(--animate-slide-up);
+  }
+
+  .toast[data-variant='success'] {
+    @apply border-success/40;
+  }
+
+  .toast[data-variant='error'] {
+    @apply border-danger/40;
+  }
+
+  .toast[data-variant='info'] {
+    @apply border-primary/40;
+  }
+
+  .toast-icon {
+    @apply mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-full;
+  }
+
+  .toast[data-variant='success'] .toast-icon {
+    @apply bg-success-soft text-success-ink;
+  }
+
+  .toast[data-variant='error'] .toast-icon {
+    @apply bg-danger-soft text-danger-ink;
+  }
+
+  .toast[data-variant='info'] .toast-icon {
+    @apply bg-primary-soft text-primary-ink;
+  }
+}
+
+/* Estructura del panel de control: barra lateral colapsable y cajón móvil. */
+.app-shell {
+  display: flex;
+  min-height: 100vh;
+  background-color: var(--color-canvas);
+  color: var(--color-ink);
+}
+
+.sidebar {
+  position: fixed;
+  inset-block: 0;
+  left: 0;
+  z-index: 50;
+  display: flex;
+  width: 17.5rem;
+  flex-direction: column;
+  border-right: 1px solid var(--color-line);
+  background-color: var(--color-surface);
+  transform: translateX(-100%);
+  transition: transform 0.3s cubic-bezier(0.22, 1, 0.36, 1), width 0.2s ease;
+}
+
+.sidebar[data-state='open'] {
+  transform: translateX(0);
+}
+
+.sidebar-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  background-color: color-mix(in oklab, var(--color-ink) 45%, transparent);
+  backdrop-filter: blur(2px);
+}
+
+.topbar {
+  position: sticky;
+  top: 0;
+  z-index: 30;
+  border-bottom: 1px solid var(--color-line);
+  background-color: color-mix(in oklab, var(--color-surface) 82%, transparent);
+  backdrop-filter: blur(12px);
+}
+
+.brand-mark {
+  background-image: linear-gradient(135deg, var(--color-brand-400), var(--color-brand-600) 55%, var(--color-brand-800));
+  box-shadow: var(--shadow-brand);
+}
+
+.brand-panel {
+  background-image:
+    radial-gradient(60rem 40rem at 15% 10%, color-mix(in oklab, var(--color-brand-400) 45%, transparent), transparent 60%),
+    radial-gradient(40rem 30rem at 90% 90%, color-mix(in oklab, var(--color-brand-700) 65%, transparent), transparent 60%),
+    linear-gradient(160deg, var(--color-brand-900), var(--color-brand-950));
+}
+
+.hero-panel {
+  background-image:
+    radial-gradient(40rem 24rem at 100% 0%, color-mix(in oklab, var(--color-brand-400) 30%, transparent), transparent 62%),
+    linear-gradient(135deg, var(--color-brand-700), var(--color-brand-900) 70%, var(--color-brand-950));
+}
+
+@media (min-width: 768px) {
+  .sidebar {
+    position: static;
+    transform: none;
+  }
+
+  .sidebar[data-collapsed='true'] {
+    width: 5rem;
+  }
+
+  .sidebar[data-collapsed='true'] .nav-label,
+  .sidebar[data-collapsed='true'] .brand-wordmark,
+  .sidebar[data-collapsed='true'] .sidebar-meta {
+    display: none;
+  }
+
+  .sidebar[data-collapsed='true'] .nav-link {
+    justify-content: center;
+    padding-inline: 0;
+  }
+
+  .sidebar[data-collapsed='true'] #sidebar-collapse svg {
+    transform: rotate(180deg);
+  }
+}
+
+/* Tabulator: la tabla usa los mismos tokens que el resto de la interfaz. */
+.tabulator {
+  background-color: var(--color-surface);
+  border-color: var(--color-line);
+  color: var(--color-ink);
+  border-radius: var(--radius-lg);
+  font-size: 0.875rem;
+}
+
+.tabulator .tabulator-header {
+  background-color: var(--color-surface-muted);
+  border-color: var(--color-line);
+  color: var(--color-ink-muted);
+}
+
+.tabulator .tabulator-header .tabulator-col {
+  background-color: var(--color-surface-muted);
+  border-color: var(--color-line);
+}
+
+.tabulator .tabulator-header .tabulator-col .tabulator-col-content {
+  color: var(--color-ink-muted);
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  font-size: 0.6875rem;
+}
+
+.tabulator .tabulator-header .tabulator-col .tabulator-arrow {
+  border-bottom-color: var(--color-ink-subtle);
+}
+
+.tabulator .tabulator-row {
+  background-color: var(--color-surface);
+  border-color: var(--color-line);
+  color: var(--color-ink);
+}
+
+.tabulator .tabulator-row.tabulator-row-even {
+  background-color: var(--color-surface-muted);
+}
+
+.tabulator .tabulator-row:hover {
+  background-color: var(--color-primary-soft);
+}
+
+.tabulator .tabulator-row.tabulator-selected {
+  background-color: var(--color-primary-soft);
+}
+
+.tabulator .tabulator-cell {
+  border-color: var(--color-line);
+  padding: 0.625rem 0.75rem;
+}
+
+.tabulator .tabulator-footer {
+  background-color: var(--color-surface-muted);
+  border-color: var(--color-line);
+}
+
+.tabulator select,
+.tabulator input {
+  background-color: var(--color-surface);
+  color: var(--color-ink);
+  border-color: var(--color-line-strong);
+  border-radius: var(--radius-sm);
+  padding: 0.3rem 0.5rem;
+}
+
+.tabulator .tabulator-placeholder {
+  color: var(--color-ink-muted);
+}
+
+/* Litepicker: se alinea con la paleta del tema activo. */
+.litepicker {
+  --litepicker-container-months-color-bg: var(--color-surface);
+  --litepicker-container-months-box-shadow-color: color-mix(in oklab, var(--color-ink) 18%, transparent);
+  --litepicker-month-header-color: var(--color-ink);
+  --litepicker-month-weekday-color: var(--color-ink-subtle);
+  --litepicker-month-week-number-color: var(--color-ink-subtle);
+  --litepicker-day-color: var(--color-ink-muted);
+  --litepicker-day-color-hover: var(--color-ink);
+  --litepicker-is-today-color: var(--color-primary);
+  --litepicker-is-in-range-color: var(--color-ink);
+  --litepicker-is-in-range-color-bg: var(--color-primary-soft);
+  --litepicker-is-start-color: var(--color-primary-contrast);
+  --litepicker-is-start-color-bg: var(--color-primary);
+  --litepicker-is-end-color: var(--color-primary-contrast);
+  --litepicker-is-end-color-bg: var(--color-primary);
+  --litepicker-is-locked-color: var(--color-ink-subtle);
+  --litepicker-button-prev-month-color: var(--color-ink-muted);
+  --litepicker-button-prev-month-color-hover: var(--color-ink);
+  --litepicker-button-next-month-color: var(--color-ink-muted);
+  --litepicker-button-next-month-color-hover: var(--color-ink);
+  --litepicker-button-apply-color: var(--color-primary-contrast);
+  --litepicker-button-apply-color-bg: var(--color-primary);
+  --litepicker-button-cancel-color: var(--color-ink-muted);
+  --litepicker-button-cancel-color-bg: var(--color-surface-strong);
+  --litepicker-button-reset-color: var(--color-ink-subtle);
+  --litepicker-button-reset-color-hover: var(--color-ink);
+  --litepicker-footer-color-bg: var(--color-surface-muted);
+  --litepicker-footer-box-shadow-color: color-mix(in oklab, var(--color-ink) 18%, transparent);
+  --litepicker-day-width: 2.125rem;
+}

@@ -6,54 +6,288 @@ import '../styles/main.css';
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light dark" />
+    <meta name="theme-color" content="#2563eb" />
+    <meta name="description" content="Panel operativo de INET IVS" />
     <title>INET IVS</title>
   </head>
-  <body class="bg-slate-50 text-slate-900 dark:bg-slate-900 dark:text-slate-50">
-    <div id="toast" role="status" aria-live="polite" class="fixed bottom-4 right-4 z-50 max-w-sm rounded-lg bg-slate-800 p-4 text-white shadow-lg" hidden></div>
-    <main id="login-screen" class="flex min-h-screen items-center justify-center p-4" hidden>
-      <div class="w-full max-w-md">
-        <div class="mb-8 text-center"><span class="inline-block rounded-2xl bg-blue-600 p-4 font-bold text-white">IVS</span><h1 class="mt-4 text-3xl font-bold">Bienvenido a INET IVS</h1><p class="mt-2">Ingresa con tu usuario y contraseña de IVS SAT.</p></div>
-        <form id="login-form" class="space-y-5 rounded-2xl bg-white p-6 shadow-sm dark:bg-slate-800">
-          <h2 class="text-xl font-semibold">Iniciar sesión</h2>
-          <label class="block">Usuario<input name="username" required maxlength="150" autocomplete="username" class="field mt-2" /></label>
-          <label class="block">Contraseña<input name="password" type="password" required maxlength="256" autocomplete="current-password" class="field mt-2" /></label>
-          <button class="button w-full" type="submit">Ingresar</button>
-        </form>
-      </div>
-    </main>
-    <div id="app" class="min-h-screen md:flex" hidden>
-      <aside id="sidebar" class="w-full bg-white p-5 dark:bg-slate-800 md:w-64 md:shrink-0">
-        <a href="#inicio" class="text-lg font-bold"><span class="mr-2 rounded-lg bg-blue-600 p-2 text-white">IVS</span> INET IVS</a>
-        <nav class="mt-8 space-y-2" aria-label="Navegación principal">
-          <button id="nav-home" class="nav-button">Inicio</button>
-          <button id="nav-orders" class="nav-button" hidden>Pedidos AnyMarket</button>
-        </nav>
-      </aside>
-      <div class="min-w-0 flex-1">
-        <header class="flex flex-wrap items-center gap-3 bg-white p-4 dark:bg-slate-800">
-          <button id="menu-toggle" class="control" aria-controls="sidebar" aria-expanded="true">☰ <span class="sr-only">Mostrar u ocultar menú</span></button>
-          <span id="page-title" class="flex-1 font-semibold">Inicio</span><span id="username"></span>
-          <button id="theme-toggle" class="control" aria-label="Cambiar tema">◐</button>
-          <button id="logout" class="control">Cerrar sesión</button>
-        </header>
-        <section id="home" class="mx-auto max-w-6xl p-6 md:p-10"><p class="font-bold uppercase text-blue-600 dark:text-blue-300">Panel principal</p><h1 id="greeting" class="mt-2 text-3xl font-bold"></h1><p class="mt-3">Bienvenido a INET IVS. Desde aquí podrás acceder a las herramientas de la aplicación.</p><div class="mt-8 rounded-2xl bg-white p-6 dark:bg-slate-800"><h2 class="font-semibold">Tu espacio de trabajo</h2><p class="mt-2">Tu sesión está activa.</p></div></section>
-        <section id="orders" class="p-4 md:p-8" hidden>
-          <h1 class="text-lg font-bold uppercase">Pedidos AnyMarket</h1>
-          <div id="sync-status" class="mt-4 flex flex-wrap gap-x-8 gap-y-2 text-sm" aria-live="polite"></div>
-          <form id="filters" class="my-6 flex flex-wrap items-end gap-3">
-            <label>Desde<input type="date" name="desde" class="field" /></label>
-            <label>Hasta<input type="date" name="hasta" class="field" /></label>
-            <label>Buscar<input name="busqueda" maxlength="100" class="field" /></label>
-            <button type="submit" class="button">Buscar</button>
-            <button type="button" id="sync" class="button bg-red-700" hidden>Ejecutar tarea</button>
-            <button type="button" id="export" class="button bg-green-700">Descargar Excel</button>
-          </form>
-          <div id="orders-table" aria-label="Pedidos importados"></div>
-          <p id="empty" class="py-4" hidden>No hay pedidos que coincidan con los filtros.</p>
-          <nav class="mt-4 flex flex-wrap items-center justify-between gap-3" aria-label="Paginación"><span id="pagination"></span><div class="flex gap-2"><button id="previous" class="control">Anterior</button><button id="next" class="control">Siguiente</button></div></nav>
+  <body>
+    <a class="skip-link" href="#contenido">Saltar al contenido</a>
+
+    <svg class="hidden" aria-hidden="true" focusable="false">
+      <symbol id="icon-inicio" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M2.25 12l8.954-8.955c.44-.439 1.152-.439 1.591 0L21.75 12M4.5 9.75v10.125c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21h4.125c.621 0 1.125-.504 1.125-1.125V9.75" />
+      </symbol>
+      <symbol id="icon-pedidos" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M15.75 10.5V6a3.75 3.75 0 10-7.5 0v4.5m11.356-1.993l1.263 12c.07.665-.45 1.243-1.119 1.243H4.25a1.125 1.125 0 01-1.12-1.243l1.264-12A1.125 1.125 0 015.513 7.5h12.974c.576 0 1.059.435 1.119 1.007z" />
+      </symbol>
+      <symbol id="icon-sincronizar" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99" />
+      </symbol>
+      <symbol id="icon-candado" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z" />
+      </symbol>
+      <symbol id="icon-menu" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
+      </symbol>
+      <symbol id="icon-cerrar" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M6 18L18 6M6 6l12 12" />
+      </symbol>
+      <symbol id="icon-izquierda" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M15.75 19.5L8.25 12l7.5-7.5" />
+      </symbol>
+      <symbol id="icon-derecha" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M8.25 4.5l7.5 7.5-7.5 7.5" />
+      </symbol>
+      <symbol id="icon-sol" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M12 3v2.25m6.364.386l-1.591 1.591M21 12h-2.25m-.386 6.364l-1.591-1.591M12 18.75V21m-4.773-4.227l-1.591 1.591M5.25 12H3m4.227-4.773L5.636 5.636M15.75 12a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0z" />
+      </symbol>
+      <symbol id="icon-luna" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M21.752 15.002A9.72 9.72 0 0118 15.75c-5.385 0-9.75-4.365-9.75-9.75 0-1.33.266-2.597.748-3.752A9.753 9.753 0 003 11.25C3 16.635 7.365 21 12.75 21a9.753 9.753 0 009.002-5.998z" />
+      </symbol>
+      <symbol id="icon-descargar" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
+      </symbol>
+      <symbol id="icon-info" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M12 8.25v.008M12 11.25v.008M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+      </symbol>
+      <symbol id="icon-alerta" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
+      </symbol>
+      <symbol id="icon-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M4.5 12.75l6 6 9-13.5" />
+      </symbol>
+    </svg>
+
+    <div id="toast" class="toast" role="status" aria-live="polite" data-variant="info" hidden>
+      <span class="toast-icon" aria-hidden="true">
+        <svg class="size-4" viewBox="0 0 24 24"><use id="toast-icon" href="#icon-info"></use></svg>
+      </span>
+      <p id="toast-message" class="min-w-0 flex-1 leading-relaxed"></p>
+      <button id="toast-close" class="icon-btn -mt-1 -mr-1 size-7" type="button" aria-label="Cerrar notificación">
+        <svg class="size-4" viewBox="0 0 24 24"><use href="#icon-cerrar"></use></svg>
+      </button>
+    </div>
+
+    <main id="login-screen" hidden>
+      <div class="grid min-h-screen lg:grid-cols-[1.05fr_1fr]">
+        <section class="brand-panel relative hidden overflow-hidden px-12 py-14 text-white lg:flex lg:flex-col lg:justify-between">
+          <div class="relative z-10 flex items-center gap-3">
+            <span class="brand-mark flex size-11 items-center justify-center rounded-xl text-base font-bold">IVS</span>
+            <span>
+              <span class="block text-lg font-semibold tracking-tight">INET IVS</span>
+              <span class="block text-sm text-white/60">Panel operativo</span>
+            </span>
+          </div>
+          <div class="relative z-10 max-w-lg">
+            <h2 class="text-4xl font-bold leading-tight tracking-tight">Tu operación de e-commerce en un solo lugar</h2>
+            <p class="mt-4 text-base leading-relaxed text-white/75">
+              Consulta los pedidos importados desde AnyMarket, revisa el estado de las sincronizaciones y exporta los resultados cuando los necesites.
+            </p>
+            <ul class="mt-8 space-y-3 text-sm text-white/85">
+              <li class="flex items-start gap-3">
+                <svg class="mt-0.5 size-5 shrink-0 text-white/60" viewBox="0 0 24 24"><use href="#icon-check"></use></svg>
+                Filtros por período, canal y estado del pedido.
+              </li>
+              <li class="flex items-start gap-3">
+                <svg class="mt-0.5 size-5 shrink-0 text-white/60" viewBox="0 0 24 24"><use href="#icon-check"></use></svg>
+                Historial de la última sincronización y de su estado.
+              </li>
+              <li class="flex items-start gap-3">
+                <svg class="mt-0.5 size-5 shrink-0 text-white/60" viewBox="0 0 24 24"><use href="#icon-check"></use></svg>
+                Exportación de los resultados filtrados a Excel.
+              </li>
+            </ul>
+          </div>
+          <p class="relative z-10 text-xs text-white/50">Acceso restringido a personal autorizado de IVS SAT.</p>
+        </section>
+
+        <section class="flex items-center justify-center px-5 py-12">
+          <div class="w-full max-w-md">
+            <div class="flex items-center gap-3 lg:hidden">
+              <span class="brand-mark flex size-10 items-center justify-center rounded-xl text-sm font-bold text-white">IVS</span>
+              <span class="text-lg font-semibold tracking-tight">INET IVS</span>
+            </div>
+            <h1 class="mt-8 text-3xl font-bold tracking-tight text-ink lg:mt-0">Bienvenido a INET IVS</h1>
+            <p class="mt-2 text-sm text-ink-muted">Ingresa con tu usuario y contraseña de IVS SAT.</p>
+
+            <form id="login-form" class="card mt-8 card-body">
+              <div class="space-y-5">
+                <div>
+                  <label class="field-label" for="login-usuario">Usuario</label>
+                  <input id="login-usuario" name="username" required maxlength="150" autocomplete="username" class="field" />
+                </div>
+                <div>
+                  <label class="field-label" for="login-clave">Contraseña</label>
+                  <input id="login-clave" name="password" type="password" required maxlength="256" autocomplete="current-password" class="field" />
+                </div>
+                <button class="btn btn-primary w-full" type="submit">Ingresar</button>
+              </div>
+            </form>
+
+            <p class="mt-6 text-center text-xs text-ink-subtle">Si no puedes ingresar, contacta al administrador de la plataforma.</p>
+          </div>
         </section>
       </div>
+    </main>
+
+    <div id="app" hidden>
+      <div class="app-shell">
+        <aside id="sidebar" class="sidebar" data-state="closed" data-collapsed="false" aria-label="Navegación principal">
+          <div class="flex h-16 shrink-0 items-center gap-3 border-b border-line px-4">
+            <span class="brand-mark flex size-9 shrink-0 items-center justify-center rounded-lg text-sm font-bold text-white">IVS</span>
+            <span class="brand-wordmark min-w-0">
+              <span class="block truncate text-sm font-semibold tracking-tight text-ink">INET IVS</span>
+              <span class="sidebar-meta block truncate text-xs text-ink-subtle">Panel operativo</span>
+            </span>
+            <button id="sidebar-collapse" class="icon-btn ml-auto hidden size-8 md:inline-flex" type="button" aria-label="Contraer el menú" aria-expanded="true">
+              <svg class="size-4" viewBox="0 0 24 24"><use href="#icon-izquierda"></use></svg>
+            </button>
+          </div>
+
+          <nav class="flex-1 space-y-1 overflow-y-auto p-3" aria-label="Secciones">
+            <p class="sidebar-meta px-3 pb-2 text-xs font-semibold uppercase tracking-wider text-ink-subtle">Navegación</p>
+            <button id="nav-home" class="nav-link" type="button" aria-current="page">
+              <svg class="nav-icon size-5 shrink-0" viewBox="0 0 24 24"><use href="#icon-inicio"></use></svg>
+              <span class="nav-label">Inicio</span>
+            </button>
+            <button id="nav-orders" class="nav-link" type="button" hidden>
+              <svg class="nav-icon size-5 shrink-0" viewBox="0 0 24 24"><use href="#icon-pedidos"></use></svg>
+              <span class="nav-label">Pedidos AnyMarket</span>
+            </button>
+          </nav>
+
+          <div class="border-t border-line p-3">
+            <div class="sidebar-meta flex items-center gap-3 rounded-lg bg-surface-muted px-3 py-2.5">
+              <span id="user-initials" class="flex size-9 shrink-0 items-center justify-center rounded-full bg-primary-soft text-xs font-bold text-primary-ink">–</span>
+              <span class="min-w-0">
+                <span id="username" class="block truncate text-sm font-medium text-ink"></span>
+                <span class="block truncate text-xs text-ink-subtle">Sesión activa</span>
+              </span>
+            </div>
+          </div>
+        </aside>
+
+        <div id="sidebar-backdrop" class="sidebar-backdrop" hidden></div>
+
+        <div class="flex min-w-0 flex-1 flex-col">
+          <header class="topbar flex h-16 shrink-0 items-center gap-3 px-4 md:px-6">
+            <button id="menu-toggle" class="icon-btn md:hidden" type="button" aria-controls="sidebar" aria-expanded="false" aria-label="Mostrar u ocultar el menú">
+              <svg class="size-5" viewBox="0 0 24 24"><use href="#icon-menu"></use></svg>
+            </button>
+            <div class="min-w-0 flex-1">
+              <h1 id="page-title" class="truncate text-sm font-semibold tracking-tight text-ink md:text-base">Inicio</h1>
+              <p class="hidden truncate text-xs text-ink-subtle md:block">INET IVS · Panel operativo</p>
+            </div>
+            <button id="theme-toggle" class="icon-btn" type="button" aria-label="Cambiar entre tema claro y oscuro">
+              <svg class="size-5 dark:hidden" viewBox="0 0 24 24"><use href="#icon-sol"></use></svg>
+              <svg class="hidden size-5 dark:block" viewBox="0 0 24 24"><use href="#icon-luna"></use></svg>
+            </button>
+            <button id="logout" class="btn btn-secondary btn-sm" type="button">Cerrar sesión</button>
+          </header>
+
+          <main id="contenido" class="flex-1">
+            <section id="home" class="mx-auto max-w-6xl px-4 py-6 md:px-8 md:py-10">
+              <div class="hero-panel relative overflow-hidden rounded-2xl p-6 text-white shadow-elevated md:p-10">
+                <div class="relative max-w-2xl">
+                  <span class="chip border-white/25 bg-white/10 text-white">Panel principal</span>
+                  <h2 id="greeting" class="mt-4 text-3xl font-bold tracking-tight md:text-4xl"></h2>
+                  <p class="mt-3 max-w-xl text-sm leading-relaxed text-white/80 md:text-base">
+                    Bienvenido a INET IVS. Desde aquí puedes consultar los pedidos importados de AnyMarket, revisar el estado de las sincronizaciones y exportar los resultados.
+                  </p>
+                  <div class="mt-7 flex flex-wrap gap-3">
+                    <button id="hero-orders" class="btn bg-white text-brand-900 shadow-elevated hover:bg-white/90" type="button" hidden>
+                      Ver pedidos
+                      <svg class="size-4" viewBox="0 0 24 24"><use href="#icon-derecha"></use></svg>
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <div class="mt-6 grid gap-4 md:grid-cols-3">
+                <article class="stat-card">
+                  <span class="flex size-10 items-center justify-center rounded-lg bg-primary-soft text-primary-ink">
+                    <svg class="size-5" viewBox="0 0 24 24"><use href="#icon-pedidos"></use></svg>
+                  </span>
+                  <h3 class="mt-4 font-semibold tracking-tight text-ink">Pedidos AnyMarket</h3>
+                  <p class="mt-1 text-sm leading-relaxed text-ink-muted">Consulta los pedidos por fecha, canal y estado, y ordénalos desde las cabeceras de la tabla.</p>
+                </article>
+                <article class="stat-card">
+                  <span class="flex size-10 items-center justify-center rounded-lg bg-success-soft text-success-ink">
+                    <svg class="size-5" viewBox="0 0 24 24"><use href="#icon-sincronizar"></use></svg>
+                  </span>
+                  <h3 class="mt-4 font-semibold tracking-tight text-ink">Sincronización</h3>
+                  <p class="mt-1 text-sm leading-relaxed text-ink-muted">El panel muestra la última ejecución correcta y el detalle de los errores registrados.</p>
+                </article>
+                <article class="stat-card">
+                  <span class="flex size-10 items-center justify-center rounded-lg bg-warning-soft text-warning-ink">
+                    <svg class="size-5" viewBox="0 0 24 24"><use href="#icon-candado"></use></svg>
+                  </span>
+                  <h3 class="mt-4 font-semibold tracking-tight text-ink">Sesión segura</h3>
+                  <p class="mt-1 text-sm leading-relaxed text-ink-muted">Tu sesión se valida en el servidor y los permisos se revisan en cada consulta.</p>
+                </article>
+              </div>
+            </section>
+
+            <section id="orders" class="mx-auto max-w-7xl px-4 py-6 md:px-8 md:py-10" hidden>
+              <div class="flex flex-wrap items-end justify-between gap-4">
+                <div>
+                  <p class="text-xs font-semibold uppercase tracking-wider text-primary">Módulo AnyMarket</p>
+                  <h2 class="mt-1 text-2xl font-bold tracking-tight text-ink">Pedidos</h2>
+                  <p class="mt-1 max-w-xl text-sm text-ink-muted">Filtra por período, busca por número de pedido o cliente y exporta los resultados a Excel.</p>
+                </div>
+                <div id="sync-status" class="flex flex-wrap gap-2" aria-live="polite"></div>
+              </div>
+
+              <form id="filters" class="card mt-6 card-body">
+                <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                  <div>
+                    <label class="field-label" for="filtro-desde">Desde</label>
+                    <input id="filtro-desde" type="date" name="desde" class="field" />
+                  </div>
+                  <div>
+                    <label class="field-label" for="filtro-hasta">Hasta</label>
+                    <input id="filtro-hasta" type="date" name="hasta" class="field" />
+                  </div>
+                  <div class="sm:col-span-2">
+                    <label class="field-label" for="filtro-busqueda">Buscar</label>
+                    <input id="filtro-busqueda" name="busqueda" maxlength="100" class="field" placeholder="Número de pedido o cliente" />
+                  </div>
+                </div>
+                <div class="mt-5 flex flex-wrap items-center gap-3 border-t border-line pt-5">
+                  <button type="submit" class="btn btn-primary">Buscar</button>
+                  <button type="button" id="sync" class="btn btn-danger" hidden>Ejecutar tarea</button>
+                  <button type="button" id="export" class="btn btn-success">
+                    <svg class="size-4" viewBox="0 0 24 24"><use href="#icon-descargar"></use></svg>
+                    Descargar Excel
+                  </button>
+                  <span class="ml-auto text-xs text-ink-subtle">Los filtros se validan y aplican en el servidor.</span>
+                </div>
+              </form>
+
+              <div class="card mt-6 overflow-hidden">
+                <div class="flex flex-wrap items-center justify-between gap-3 border-b border-line px-5 py-4">
+                  <div>
+                    <h3 class="card-title">Resultados</h3>
+                    <p class="card-subtitle">Pulsa una cabecera para ordenar y usa los filtros de canal y estado.</p>
+                  </div>
+                  <span id="pagination" class="chip chip-neutral">Cargando…</span>
+                </div>
+                <div id="orders-table" class="p-3" aria-label="Pedidos importados"></div>
+                <div class="flex flex-wrap items-center justify-between gap-3 border-t border-line px-5 py-4">
+                  <p class="text-xs text-ink-subtle">Paginación en el servidor · 20 pedidos por página</p>
+                  <div class="flex gap-2">
+                    <button id="previous" class="btn btn-secondary btn-sm" type="button">Anterior</button>
+                    <button id="next" class="btn btn-secondary btn-sm" type="button">Siguiente</button>
+                  </div>
+                </div>
+              </div>
+            </section>
+          </main>
+        </div>
+      </div>
     </div>
+
     <noscript>Esta interfaz requiere JavaScript para iniciar sesión y consultar pedidos.</noscript>
     <script src="/static/vendor/litepicker/litepicker.js" is:inline defer></script>
     <script src="../scripts/app.js"></script>
