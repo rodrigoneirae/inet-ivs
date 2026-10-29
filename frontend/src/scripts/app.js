@@ -131,10 +131,11 @@ async function loadOrders(next = 1, keep = false) {
 
 $('#login-form').addEventListener('submit', async event => {
   event.preventDefault();
+  const loginForm = event.currentTarget;
   try {
-    const formData = new FormData(event.currentTarget);
+    const formData = new FormData(loginForm);
     const result = await post('/api/v1/ingresar/', Object.fromEntries(formData));
-    event.currentTarget.reset();
+    loginForm.reset();
     displaySession(result);
   } catch (error) { toast(error.message); }
 });
