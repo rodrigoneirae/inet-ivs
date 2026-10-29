@@ -18,6 +18,7 @@ from django.contrib import admin
 from django.urls import include, path
 from django.views.generic import RedirectView
 from modulo.acceso import api
+from . import views
 
 urlpatterns = [
     path('api/v1/sesion/', api.sesion),
@@ -27,6 +28,8 @@ urlpatterns = [
     path('api/v1/pedidos/exportar/', api.exportar),
     path('api/v1/pedidos/sincronizar/', api.sincronizar),
     path('admin/', admin.site.urls),
+    path('', views.inicio, name='inicio'),
+    path('pedidos/', views.pedidos, name='pedidos'),
     path('login/', RedirectView.as_view(url='/', permanent=False), name='login'),
     path('anymarket/', include('modulo.anymarket.urls')),
 ]

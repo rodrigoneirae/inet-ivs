@@ -24,7 +24,7 @@ class ApiTests(SimpleTestCase):
         client = Client()
         self.assertEqual(client.get('/admin/login/').status_code, 200)
         self.assertRedirects(client.get('/login/'), '/', fetch_redirect_response=False)
-        self.assertRedirects(client.get('/anymarket/pedidos/'), '/#pedidos', fetch_redirect_response=False)
+        self.assertRedirects(client.get('/anymarket/pedidos/'), '/pedidos/', fetch_redirect_response=False)
 
     def test_pedidos_requires_permission(self) -> None:
         request = self.factory.get('/api/v1/pedidos/')

@@ -1,3 +1,11 @@
+FROM node:22-alpine AS astro-build
+WORKDIR /frontend
+COPY frontend/package.json frontend/package-lock.json ./
+RUN npm ci
+COPY frontend/astro.config.mjs frontend/tsconfig.json ./
+COPY frontend/src ./src
+RUN npm run build
+
 FROM python:3.14-slim
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
@@ -12,6 +20,7 @@ RUN pip install --no-cache-dir -r requirements.txt \
     && chown app:app /app /var/lib/celery
 
 COPY --chown=app:app . .
+COPY --from=astro-build --chown=app:app /frontend/dist /app/frontend/dist
 USER app
 
 EXPOSE 8000

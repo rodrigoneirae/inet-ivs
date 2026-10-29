@@ -48,7 +48,14 @@ function displaySession(data) {
     $('#greeting').textContent = `Hola, ${data.usuario}`;
     $('#nav-orders').hidden = !data.puede_ver_pedidos;
     $('#sync').hidden = !data.puede_sincronizar;
-    if (window.location.hash === '#pedidos' && data.puede_ver_pedidos) $('#nav-orders').click();
+    if (window.location.pathname === '/pedidos/' && data.puede_ver_pedidos) {
+      $('#home').hidden = true;
+      $('#orders').hidden = false;
+      $('#page-title').textContent = 'Pedidos AnyMarket';
+      loadOrders();
+    } else if (window.location.hash === '#pedidos' && data.puede_ver_pedidos) {
+      $('#nav-orders').click();
+    }
   }
 }
 
@@ -164,8 +171,8 @@ $('#logout').addEventListener('click', async () => {
   try { const data = await post('/api/v1/salir/'); displaySession({ ...data, usuario: null }); }
   catch (error) { toast(error.message); }
 });
-$('#nav-home').addEventListener('click', () => { $('#home').hidden = false; $('#orders').hidden = true; $('#page-title').textContent = 'Inicio'; });
-$('#nav-orders').addEventListener('click', () => { $('#home').hidden = true; $('#orders').hidden = false; $('#page-title').textContent = 'Pedidos AnyMarket'; loadOrders(); });
+$('#nav-home').addEventListener('click', () => { window.location.assign('/'); });
+$('#nav-orders').addEventListener('click', () => { window.location.assign('/pedidos/'); });
 $('#menu-toggle').addEventListener('click', event => { const side = $('#sidebar'); side.hidden = !side.hidden; event.currentTarget.setAttribute('aria-expanded', String(!side.hidden)); });
 $('#theme-toggle').addEventListener('click', () => { document.documentElement.classList.toggle('dark'); });
 form.addEventListener('submit', event => { event.preventDefault(); loadOrders(); });

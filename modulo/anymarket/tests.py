@@ -249,7 +249,7 @@ class PedidosVistaTests(TestCase):
         self.assertEqual(self.client.get(url).status_code, 405)
         self.assertRedirects(self.client.post(url), '/anymarket/pedidos/', fetch_redirect_response=False)
         self.assertRedirects(self.client.post(url), '/anymarket/pedidos/', fetch_redirect_response=False)
-        self.assertRedirects(self.client.get('/anymarket/pedidos/'), '/#pedidos', fetch_redirect_response=False)
+        self.assertRedirects(self.client.get('/anymarket/pedidos/'), '/pedidos/', fetch_redirect_response=False)
         encolar.assert_called_once_with(retry=False)
         cache.clear()
 
