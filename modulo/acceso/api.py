@@ -14,6 +14,8 @@ from django.views.decorators.http import require_GET, require_POST
 
 from modulo.anymarket.views import consulta_pedidos, exportar_pedidos, solicitar_sincronizacion
 from modulo.anymarket.models import Pedido, Sincronizacion
+from modulo.anymarket.inet import crear_pedido
+from modulo.anymarket.tipo_documento import tipo_documento_solicitado
 
 
 class LoginForm(forms.Form):
@@ -25,6 +27,9 @@ class LoginForm(forms.Form):
 @never_cache
 def sesion(request: HttpRequest) -> JsonResponse:
     return JsonResponse({'csrf': get_token(request), 'usuario': request.user.get_username() if request.user.is_authenticated else None,
+                         'puede_ver_stock': request.user.has_perm('informat.consultar_stock'),
+                         'puede_ver_catalogo': request.user.has_perm('informat.consultar_productos_inet'),
+                         'puede_administrar_token': request.user.has_perm('informat.administrar_token'),
                          'puede_ver_pedidos': request.user.has_perm('anymarket.view_pedido'),
                          'puede_sincronizar': request.user.has_perm('anymarket.change_pedido')})
 
@@ -54,6 +59,9 @@ def ingresar(request: HttpRequest) -> JsonResponse:
         return JsonResponse({'error': 'Credenciales inválidas.'}, status=401)
     login(request, user)
     return JsonResponse({'csrf': get_token(request), 'usuario': user.get_username(),
+                         'puede_ver_stock': user.has_perm('informat.consultar_stock'),
+                         'puede_ver_catalogo': user.has_perm('informat.consultar_productos_inet'),
+                         'puede_administrar_token': user.has_perm('informat.administrar_token'),
                          'puede_ver_pedidos': user.has_perm('anymarket.view_pedido'),
                          'puede_sincronizar': user.has_perm('anymarket.change_pedido')})
 
@@ -75,6 +83,40 @@ def sincronizar(request: HttpRequest) -> JsonResponse:
     nivel, mensaje = solicitar_sincronizacion()
     return JsonResponse({'mensaje': mensaje} if nivel == 'success' else {'error': mensaje},
                         status={'success': 200, 'warning': 429, 'error': 503}[nivel])
+
+
+@require_POST
+@never_cache
+def crear_pedido_inet(request: HttpRequest, uuid_pedido: object) -> JsonResponse:
+    if not request.user.is_authenticated:
+        return JsonResponse({'error': 'Inicia sesión.'}, status=401)
+    if not request.user.has_perm('anymarket.change_pedido'):
+        return JsonResponse({'error': 'No tienes permiso para crear pedidos en I-NET.'}, status=403)
+    try:
+        crear_pedido(uuid_pedido)
+    except Pedido.DoesNotExist:
+        return JsonResponse({'error': 'Pedido no encontrado.'}, status=404)
+    except ValueError as exc:
+        return JsonResponse({'error': str(exc)}, status=409)
+    pedido = Pedido.objects.get(uuid=uuid_pedido)
+    if pedido.inet_estado != 'creado':
+        return JsonResponse({'error': pedido.inet_error}, status=409)
+    return JsonResponse({'mensaje': 'Pedido creado en I-NET.', 'numero': pedido.inet_numero,
+                         'tipo_documento': pedido.inet_tipo_documento})
+
+
+@require_GET
+@never_cache
+def errores_pedido_inet(request: HttpRequest, uuid_pedido: object) -> JsonResponse:
+    if not request.user.is_authenticated:
+        return JsonResponse({'error': 'Inicia sesión.'}, status=401)
+    if not request.user.has_perm('anymarket.change_pedido'):
+        return JsonResponse({'error': 'No tienes permiso para consultar errores.'}, status=403)
+    pedido = Pedido.objects.filter(uuid=uuid_pedido).first()
+    if pedido is None:
+        return JsonResponse({'error': 'Pedido no encontrado.'}, status=404)
+    intentos = pedido.intentos_inet.order_by('-fecha').values('fecha', 'resultado', 'detalle')[:100]
+    return JsonResponse({'intentos': list(intentos)})
 
 
 @require_GET
@@ -110,8 +152,11 @@ def pedidos(request: HttpRequest) -> JsonResponse:
                         'fecha': pedido.creado_en.isoformat(),
                         'fecha_local': timezone.localtime(pedido.creado_en, ZoneInfo(settings.ANYMARKET_TIME_ZONE)).strftime('%d/%m/%Y %H:%M:%S'),
                         'items': pedido.cantidad_items,
-                        'total': datos.get('total'), 'estado': datos.get('marketPlaceStatus'),
-                        'fulfillment': datos.get('fulfillment') is True})
+                         'total': datos.get('total'), 'estado': datos.get('marketPlaceStatus'),
+                         'inet_estado': pedido.inet_estado, 'inet_numero': pedido.inet_numero,
+                         'inet_tipo_documento': pedido.inet_tipo_documento,
+                         'documento_solicitado': tipo_documento_solicitado(datos),
+                         'fulfillment': datos.get('fulfillment') is True})
     canales = list(Pedido.objects.exclude(datos__marketPlace__isnull=True)
                    .values_list('datos__marketPlace', flat=True).distinct().order_by('datos__marketPlace')[:200])
     estados = list(Pedido.objects.exclude(datos__marketPlaceStatus__isnull=True)

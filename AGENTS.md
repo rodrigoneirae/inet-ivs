@@ -34,7 +34,7 @@ Estas reglas se aplican a todo el repositorio y a cualquier código generado o m
 - Valida entradas en el servidor con formularios, validadores o serializers. Limita campos editables, tamaños, formatos y cargas de archivos. No confíes en datos del cliente ni en validaciones exclusivas del frontend.
 - Mantén las protecciones de Django contra CSRF, XSS y SQL injection. Usa ORM o consultas parametrizadas; evita HTML no confiable, `mark_safe` y excepciones CSRF sin justificación y controles equivalentes.
 - No incluyas secretos, credenciales ni datos personales en código, repositorio, errores o logs. Usa variables de entorno o un gestor de secretos. No expongas trazas al usuario.
-- Para producción, exige `DEBUG=False`, secretos seguros, hosts y orígenes permitidos explícitos, HTTPS, cookies seguras y cabeceras de seguridad adecuadas. No debilites la configuración para facilitar pruebas.
+- Para producción, exige `DEBUG=False`, secretos seguros, hosts y orígenes permitidos explícitos, HTTPS, cookies seguras y cabeceras de seguridad adecuadas. No debilites la configuración para facilitar pruebas. Excepción autorizada: la conexión SQL Server de I-NET puede usar `TrustServerCertificate=yes` cuando se habilite explícitamente en la configuración del entorno.
 - Protege operaciones sensibles con controles apropiados: límites de frecuencia, validación de origen en WebSockets, tiempos de espera y tratamiento seguro de archivos y servicios externos. Evita revelar si existen recursos no autorizados.
 
 ## Datos, rendimiento y concurrencia

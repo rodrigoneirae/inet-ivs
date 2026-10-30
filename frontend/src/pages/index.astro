@@ -1,5 +1,6 @@
 ---
 import '../styles/main.css';
+import Modal from '../components/Modal.astro';
 
 const apiBase = (import.meta.env.PUBLIC_API_BASE ?? '').replace(/\/$/, '');
 ---
@@ -158,6 +159,10 @@ const apiBase = (import.meta.env.PUBLIC_API_BASE ?? '').replace(/\/$/, '');
               <svg class="nav-icon size-5 shrink-0" viewBox="0 0 24 24"><use href="#icon-pedidos"></use></svg>
               <span class="nav-label">Pedidos AnyMarket</span>
             </button>
+            <button id="nav-stock" class="nav-link" type="button" hidden>
+              <svg class="nav-icon size-5 shrink-0" viewBox="0 0 24 24"><use href="#icon-pedidos"></use></svg>
+              <span class="nav-label">Stock Informat</span>
+            </button>
           </nav>
 
           <div class="border-t border-line p-3">
@@ -232,6 +237,45 @@ const apiBase = (import.meta.env.PUBLIC_API_BASE ?? '').replace(/\/$/, '');
               </div>
             </section>
 
+            <section id="stock" class="w-full px-4 py-6 md:px-8 md:py-10" hidden>
+              <p class="text-xs font-semibold uppercase tracking-wider text-primary">Módulo Informat</p>
+              <h2 class="mt-1 text-2xl font-bold tracking-tight text-ink">Consulta de stock</h2>
+              <p class="mt-1 text-sm text-ink-muted">Busca productos y consulta su stock por código y bodega.</p>
+              <section id="token-informat" class="card mt-6 p-5" hidden>
+                <h3 class="card-title">Actualizar token Informat</h3>
+                <p class="card-subtitle">Ingresa un token vigente y el tiempo restante estimado. El token no se volverá a mostrar.</p>
+                <form id="token-informat-form" class="mt-4 grid items-end gap-4 md:grid-cols-[1fr_12rem_auto]" autocomplete="off">
+                  <div><label class="field-label" for="token-valor">Token de productos</label><input id="token-valor" name="token" type="password" class="field" maxlength="512" autocomplete="off" required /></div>
+                  <div><label class="field-label" for="token-minutos">Vigencia restante (minutos)</label><input id="token-minutos" name="minutos_vigencia" type="number" class="field" min="1" max="1440" required /></div>
+                  <button class="btn btn-primary" type="submit">Actualizar token</button>
+                </form>
+              </section>
+              <div id="catalogo" class="card mt-6 p-5" hidden>
+                <h3 class="card-title">Catálogo de productos</h3>
+                <form id="catalogo-filtros" class="mt-4 flex flex-wrap items-end gap-3">
+                  <div class="min-w-0 flex-1"><label class="field-label" for="catalogo-busqueda">Código o descripción</label><input id="catalogo-busqueda" name="busqueda" class="field" maxlength="60" /></div>
+                  <button class="btn btn-primary" type="submit">Buscar</button>
+                </form>
+                <p id="catalogo-estado" class="card-subtitle mt-3" role="status" aria-live="polite">Cargando productos…</p>
+                <div id="catalogo-tabla" class="mt-4" aria-label="Catálogo de productos"></div>
+                <div class="mt-4 flex flex-wrap items-center gap-3">
+                  <button id="catalogo-anterior" class="btn btn-secondary" type="button">Anterior</button>
+                  <span id="catalogo-pagina" class="text-sm text-ink-muted"></span>
+                  <button id="catalogo-siguiente" class="btn btn-secondary" type="button">Siguiente</button>
+                </div>
+              </div>
+              <form id="stock-filters" class="card mt-6 grid items-end gap-4 p-4 md:grid-cols-[1fr_1fr_auto] md:p-5">
+                <div><label class="field-label" for="stock-producto">Código de producto</label><input id="stock-producto" name="producto" class="field" maxlength="30" placeholder="Ingresa un código de producto" required /></div>
+                <div><label class="field-label" for="stock-bodega">Código de bodega</label><input id="stock-bodega" name="bodega" class="field" inputmode="numeric" pattern="[0-9]{1,4}" maxlength="4" placeholder="Todas las bodegas" /></div>
+                <button class="btn btn-primary" type="submit">Consultar</button>
+              </form>
+              <div class="card mt-6 overflow-hidden p-5">
+                <h3 class="card-title">Resultados</h3>
+                <p id="stock-status" class="card-subtitle" role="status" aria-live="polite">Ingresa un código de producto para consultar el stock.</p>
+                <div id="stock-table" class="mt-4" aria-label="Stock por bodega"></div>
+              </div>
+            </section>
+
             <section id="orders" class="w-full px-4 py-6 md:px-8 md:py-10" hidden>
               <div class="flex flex-wrap items-end justify-between gap-4">
                 <div>
@@ -293,6 +337,7 @@ const apiBase = (import.meta.env.PUBLIC_API_BASE ?? '').replace(/\/$/, '');
       </div>
     </div>
 
+    <Modal id="inet-modal" title="Resultado I-NET" description="Detalle del envío del pedido a I-NET." />
     <noscript>Esta interfaz requiere JavaScript para iniciar sesión y consultar pedidos.</noscript>
     <script src="/static/vendor/litepicker/litepicker.js" is:inline defer></script>
     <script src="../scripts/app.js"></script>

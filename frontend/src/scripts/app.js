@@ -18,6 +18,7 @@ let table;
 let applied = new URLSearchParams();
 let ordersRequest = 0;
 let searchTimer;
+let puedeCrearInet = false;
 
 function readStorage(key) {
   try {
@@ -164,7 +165,7 @@ function initials(name) {
 }
 
 function setCurrentNav(current) {
-  for (const selector of ['#nav-home', '#nav-orders']) {
+  for (const selector of ['#nav-home', '#nav-orders', '#nav-stock']) {
     const element = $(selector);
     if (!element) continue;
     if (selector === current) element.setAttribute('aria-current', 'page');
@@ -174,6 +175,7 @@ function setCurrentNav(current) {
 
 function displaySession(data) {
   csrf = data.csrf;
+  puedeCrearInet = Boolean(data.puede_sincronizar);
   $('#login-screen').hidden = Boolean(data.usuario);
   $('#app').hidden = !data.usuario;
   if (data.usuario) {
@@ -182,10 +184,19 @@ function displaySession(data) {
     if (avatar) avatar.textContent = initials(data.usuario);
     $('#greeting').textContent = `Hola, ${data.usuario}`;
     $('#nav-orders').hidden = !data.puede_ver_pedidos;
+    $('#nav-stock').hidden = !data.puede_ver_stock;
     const hero = $('#hero-orders');
     if (hero) hero.hidden = !data.puede_ver_pedidos;
     $('#sync').hidden = !data.puede_sincronizar;
-    if (window.location.pathname === '/pedidos/' && data.puede_ver_pedidos) {
+    if (window.location.pathname === '/stock/' && data.puede_ver_stock) {
+      $('#home').hidden = true;
+      $('#stock').hidden = false;
+      $('#page-title').textContent = 'Stock Informat';
+      setCurrentNav('#nav-stock');
+      $('#catalogo').hidden = !data.puede_ver_catalogo;
+      $('#token-informat').hidden = !data.puede_administrar_token;
+      if (data.puede_ver_catalogo) loadCatalogo(1);
+    } else if (window.location.pathname === '/pedidos/' && data.puede_ver_pedidos) {
       $('#home').hidden = true;
       $('#orders').hidden = false;
       $('#page-title').textContent = 'Pedidos AnyMarket';
@@ -240,6 +251,10 @@ function renderTable(data) {
       canal: channel(row.canal), pedido: row.numero ?? '—', cliente: row.cliente ?? '—',
       fecha: row.fecha_local ?? '—', items: row.items, total: row.total ?? '—',
       estado: row.estado ?? '—', fulfillment: row.fulfillment ? 'Fulfillment' : '',
+      uuid: row.uuid, inet_estado: row.inet_estado, inet_numero: row.inet_numero,
+      inet_tipo_documento: row.inet_tipo_documento,
+      documento_solicitado: row.documento_solicitado === 'factura' ? 'Factura'
+        : row.documento_solicitado === 'boleta' ? 'Boleta' : 'Por confirmar',
     })),
     layout: 'fitColumns', responsiveLayout: 'collapse', placeholder: 'No hay pedidos que coincidan con los filtros.',
     columnDefaults: {
@@ -252,13 +267,102 @@ function renderTable(data) {
         loadOrders();
       },
     },
-    columns: columns.map(([label, field, minWidth]) => ({
+    columns: [...columns.map(([label, field, minWidth]) => ({
       title: `${label}${order === field ? (direction === 'asc' ? ' ▲' : ' ▼') : ''}`,
       field, minWidth,
       ...(field === 'canal' ? { headerFilter: filterHeader(field, data.canales, canal), headerFilterFunc: () => true } : {}),
       ...(field === 'estado' ? { headerFilter: filterHeader(field, data.estados, estado), headerFilterFunc: () => true } : {}),
-    })),
+    })), {
+      title: 'Documento solicitado', field: 'documento_solicitado', minWidth: 155,
+      headerSort: false, headerClick: () => {},
+    }, {
+      title: 'I-NET', field: 'inet_estado', minWidth: 190, headerSort: false,
+      formatter: cell => {
+        const row = cell.getRow().getData();
+        const container = document.createElement('div');
+        const status = document.createElement('span');
+        status.textContent = row.inet_estado === 'creado'
+          ? `Tipo: ${row.inet_tipo_documento || 'No disponible'} · N.º: ${row.inet_numero}`
+          : (row.inet_estado || 'pendiente');
+        container.append(status);
+        if (puedeCrearInet && ['pendiente', 'error'].includes(row.inet_estado)) {
+          const button = document.createElement('button');
+          button.type = 'button'; button.className = 'btn btn-secondary btn-sm ml-2';
+          button.textContent = row.inet_estado === 'error' ? 'Reintentar' : 'Crear';
+          button.addEventListener('click', async event => {
+            event.stopPropagation(); button.disabled = true;
+            try {
+              const result = await post(`/api/v1/pedidos/${row.uuid}/inet/`);
+              toast(`${result.mensaje} Tipo: ${result.tipo_documento || 'No disponible'} · N.º: ${result.numero}`, 'success');
+            } catch (error) { showInetModal(error.message, row.pedido); }
+            finally { await loadOrders(page, true); }
+          });
+          container.append(button);
+        }
+        if (puedeCrearInet && ['error', 'revision'].includes(row.inet_estado)) {
+          const history = document.createElement('button');
+          history.type = 'button'; history.className = 'btn btn-secondary btn-sm ml-2'; history.textContent = 'Ver errores';
+          history.addEventListener('click', async event => {
+            event.stopPropagation();
+            try {
+              const data = await (await request(`/api/v1/pedidos/${row.uuid}/inet/errores/`)).json();
+              showInetHistory(data.intentos, row.pedido);
+            } catch (error) { showInetModal(error.message, row.pedido); }
+          });
+          container.append(history);
+        }
+        return container;
+      },
+    }],
   });
+}
+
+function openModal(id, title, description, content) {
+  const modal = document.getElementById(id);
+  document.getElementById(`${id}-title`).textContent = title;
+  document.getElementById(`${id}-description`).textContent = description;
+  document.getElementById(`${id}-content`).replaceChildren(content);
+  if (!modal.open) modal.showModal();
+}
+
+function showInetModal(message, pedido) {
+  const detail = document.createElement('div');
+  detail.className = 'rounded-xl border border-danger/20 bg-danger-soft p-4 text-sm leading-relaxed text-danger-ink whitespace-pre-wrap break-words';
+  detail.textContent = message;
+  openModal('inet-modal', 'No se pudo crear el pedido', `Pedido ${pedido} · Detalle de la operación en I-NET`, detail);
+}
+
+function showInetHistory(intentos, pedido) {
+  const list = document.createElement('ol');
+  list.className = 'space-y-3';
+  if (!intentos.length) {
+    const empty = document.createElement('li');
+    empty.className = 'rounded-xl bg-surface-muted p-4 text-sm text-ink-muted';
+    empty.textContent = 'No hay intentos registrados para este pedido.';
+    list.append(empty);
+  }
+  for (const intento of intentos) {
+    const item = document.createElement('li');
+    item.className = 'rounded-xl border border-line bg-surface-muted p-4';
+    const header = document.createElement('div');
+    header.className = 'flex flex-wrap items-center justify-between gap-2';
+    const status = document.createElement('span');
+    const labels = { error: 'Error', revision: 'Requiere revisión', creado: 'Creado' };
+    status.className = intento.resultado === 'error' ? 'chip chip-danger' : 'chip chip-neutral';
+    status.textContent = labels[intento.resultado] || intento.resultado;
+    const date = document.createElement('time');
+    date.className = 'text-xs text-ink-muted';
+    const parsedDate = new Date(intento.fecha);
+    date.textContent = Number.isNaN(parsedDate.getTime()) ? 'Fecha no disponible' : parsedDate.toLocaleString('es-CL');
+    if (!Number.isNaN(parsedDate.getTime())) date.dateTime = parsedDate.toISOString();
+    header.append(status, date);
+    const detail = document.createElement('p');
+    detail.className = 'mt-3 whitespace-pre-wrap break-words text-sm leading-relaxed text-ink';
+    detail.textContent = intento.detalle || 'Sin detalle adicional.';
+    item.append(header, detail);
+    list.append(item);
+  }
+  openModal('inet-modal', 'Historial de envíos', `Pedido ${pedido} · Intentos registrados en I-NET`, list);
 }
 
 function renderSyncStatus(data) {
@@ -321,6 +425,96 @@ $('#logout').addEventListener('click', async () => {
 });
 $('#nav-home').addEventListener('click', () => { window.location.assign('/'); });
 $('#nav-orders').addEventListener('click', () => { window.location.assign('/pedidos/'); });
+$('#nav-stock').addEventListener('click', () => { window.location.assign('/stock/'); });
+$('#token-informat-form').addEventListener('submit', async event => {
+  event.preventDefault();
+  const form = event.currentTarget;
+  const button = form.querySelector('button[type="submit"]');
+  button.disabled = true;
+  try {
+    const result = await post('/api/v1/informat/token/', new FormData(form));
+    form.reset();
+    toast(result.mensaje, 'success');
+  } catch (error) {
+    toast(error.message, 'error');
+  } finally {
+    button.disabled = false;
+  }
+});
+let catalogoTable;
+let catalogoPagina = 1;
+let catalogoHayMas = false;
+let catalogoRequest = 0;
+async function loadCatalogo(pagina) {
+  const id = ++catalogoRequest;
+  $('#catalogo-estado').textContent = 'Cargando productos…';
+  $('#catalogo-anterior').disabled = true;
+  $('#catalogo-siguiente').disabled = true;
+  try {
+    const query = new URLSearchParams({ busqueda: $('#catalogo-busqueda').value, pagina: String(pagina), tamano: '25' });
+    const data = await (await request(`/api/v1/informat/productos/?${query}`)).json();
+    if (id !== catalogoRequest) return;
+    catalogoPagina = data.pagina;
+    catalogoHayMas = data.hay_mas;
+    $('#catalogo-pagina').textContent = `Página ${catalogoPagina}`;
+    $('#catalogo-estado').textContent = data.productos.length ? `${data.productos.length} producto(s) en esta página.` : 'No se encontraron productos.';
+    if (catalogoTable) catalogoTable.destroy();
+    catalogoTable = new Tabulator('#catalogo-tabla', {
+      data: data.productos, layout: 'fitColumns', responsiveLayout: 'collapse',
+      columns: [
+        { title: 'Código', field: 'codigo', formatter: 'plaintext' },
+        { title: 'Descripción', field: 'descripcion', formatter: 'plaintext' },
+        { title: 'Código de barras', field: 'codigo_barra', formatter: 'plaintext' },
+      ],
+    });
+  } catch (error) {
+    if (id !== catalogoRequest) return;
+    $('#catalogo-estado').textContent = 'No se pudo cargar el catálogo.';
+    catalogoHayMas = false;
+    toast(error.message, 'error');
+  } finally {
+    if (id === catalogoRequest) {
+      $('#catalogo-anterior').disabled = catalogoPagina <= 1;
+      $('#catalogo-siguiente').disabled = !catalogoHayMas;
+    }
+  }
+}
+$('#catalogo-filtros').addEventListener('submit', event => { event.preventDefault(); loadCatalogo(1); });
+$('#catalogo-anterior').addEventListener('click', () => loadCatalogo(catalogoPagina - 1));
+$('#catalogo-siguiente').addEventListener('click', () => loadCatalogo(catalogoPagina + 1));
+let stockTable;
+let stockRequest = 0;
+$('#stock-filters').addEventListener('submit', async event => {
+  event.preventDefault();
+  const id = ++stockRequest;
+  const button = event.currentTarget.querySelector('button[type="submit"]');
+  button.disabled = true;
+  $('#stock-status').textContent = 'Consultando…';
+  if (stockTable) { stockTable.destroy(); stockTable = null; }
+  try {
+    const query = new URLSearchParams(new FormData(event.currentTarget));
+    const data = await (await request(`/api/v1/informat/stock/?${query}`)).json();
+    if (id !== stockRequest) return;
+    const rows = data.productos.flatMap(producto => {
+      const bodegas = producto.bodegas.length ? producto.bodegas : [{}];
+      return bodegas.map(bodega => ({ ...producto, bodega: bodega.bodega, disponible_bodega: bodega.disponible }));
+    });
+    $('#stock-status').textContent = rows.length ? `${data.productos.length} producto(s) encontrado(s).` : 'No se encontraron productos.';
+    stockTable = new Tabulator('#stock-table', {
+      data: rows, layout: 'fitColumns', responsiveLayout: 'collapse', pagination: true, paginationSize: 20,
+      columns: [
+        { title: 'Producto', field: 'producto', formatter: 'plaintext' },
+        { title: 'Descripción', field: 'descripcion', formatter: 'plaintext' },
+        { title: 'Stock actual general', field: 'stock_actual', formatter: 'plaintext' },
+        { title: 'Disponible general', field: 'stock_disponible', formatter: 'plaintext' },
+        { title: 'Bodega', field: 'bodega', formatter: 'plaintext' },
+        { title: 'Disponible en bodega', field: 'disponible_bodega', formatter: 'plaintext' },
+      ],
+    });
+  } catch (error) {
+    if (id === stockRequest) { $('#stock-status').textContent = 'No se pudo obtener el stock.'; toast(error.message, 'error'); }
+  } finally { if (id === stockRequest) button.disabled = false; }
+});
 $('#hero-orders').addEventListener('click', () => { window.location.assign('/pedidos/'); });
 $('#menu-toggle').addEventListener('click', () => {
   const sidebar = $('#sidebar');

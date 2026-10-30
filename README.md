@@ -89,6 +89,28 @@ Inicia Django, PostgreSQL, IVS SAT y Redis. La API utiliza Redis para limitar in
 
 ## Desarrollo local sin Docker
 
+### Consulta de stock Informat
+
+La sección `/stock/` permite consultar el stock por código de producto y bodega opcional. Se requiere asignar al usuario o grupo el permiso **Puede consultar el stock de Informat** después de ejecutar las migraciones. Una bodega vacía consulta todas según el manual.
+
+Configura en el entorno `URLTOKEN`, `EMPRUT`, `CONID`, `APLID` y `WSPRODUCTOSVENTAS` con la URL SSI y los valores cifrados entregados por Informat. Configura `URL_WSPRODUCTOSVENTAS` con la URL completa de productos; si se omite, se deriva de `URL_WSCOMERCIAL` sustituyendo el último componente. Opcionalmente, `INFORMAT_TOKEN_PRODUCTOS` permite usar un token SSI ya obtenido en lugar de solicitar uno en cada consulta. En producción ambas URL utilizadas deben ser HTTPS. En desarrollo se admiten las URL HTTP de la instalación local. No incluyas credenciales en el repositorio.
+
+El token automático se cifra con una clave derivada de `DJANGO_SECRET_KEY` y se guarda en Redis compartido durante `INFORMAT_TOKEN_TTL` segundos (por defecto 86400; entre 60 y 86400). Redis debe estar protegido y disponible para todos los procesos; cambiar `DJANGO_SECRET_KEY` invalida el token cifrado existente, que debe eliminarse o actualizarse manualmente. La vigencia de 24 horas es una estimación que debe confirmarse con Informat. Si el servicio devuelve el error documentado 413 de token no autorizado, se renueva y reintenta una vez; los demás errores no provocan renovación. Un token aún almacenado permite seguir consultando productos cuando SSI no responde.
+
+Para respaldo manual, asigna a un usuario el permiso **Puede administrar el token de Informat** y el permiso de consulta de stock. En `/stock/` puede ingresar un token de productos y su vigencia restante estimada en minutos. El valor no se muestra después de guardarlo; el sistema no comprueba su validez hasta consultar Informat. El token manual reemplaza al almacenado y al configurado en `INFORMAT_TOKEN_PRODUCTOS` mientras permanezca vigente. La variable fija no tiene vencimiento conocido y solo se usa si no hay token compartido; elimina esa variable si ya no debe volver a usarse. Si Redis no está disponible, no se consulta ni se actualiza el token; no se almacena en el broker ni en registros.
+
+`INFORMAT_TIMEOUT` establece el tiempo de espera por petición en segundos (15 por defecto; entre 1 y 120). Si la consulta devuelve 504, revisa en los registros si falló la autenticación o el servicio de productos y confirma con Informat la URL y disponibilidad del servicio; aumentar el plazo solo ayuda si el servicio responde lentamente. Si cambias la configuración, reinicia el servidor.
+
+La consulta de stock requiere un código de producto distinto de cero; la instalación de Informat rechaza las consultas sin producto. La bodega es opcional.
+
+El catálogo de productos de venta está disponible en `GET /api/v1/informat/productos/` para usuarios autenticados con el permiso `informat.consultar_productos_inet`. Acepta `busqueda` (código o descripción), `pagina` (desde 1) y `tamano` (1 a 100, por defecto 25); devuelve `productos` y `hay_mas`. Consulta la tabla externa `PRODVENT` mediante `sqlserver`; configura `SQLSERVER_DB`, `SQLSERVER_HOST`, `SQLSERVER_PORT`, `SQLSERVER_USER` y `SQLSERVER_PASSWORD` y ejecuta las migraciones de la base principal para registrar el permiso. Utiliza una cuenta SQL Server con acceso exclusivamente de lectura a las tablas necesarias. La integración requiere verificar que la tabla y sus columnas coincidan con la instalación real. El acceso de aplicaciones externas aún no está implementado.
+
+El catálogo también aparece en `/stock/` para usuarios que tengan tanto el permiso de stock como **Puede consultar productos de I-NET**.
+
+Para una instalación de I-NET con certificado SQL Server no verificable, `SQLSERVER_TRUST_SERVER_CERTIFICATE=true` habilita explícitamente `TrustServerCertificate=yes`, como en apps_satventas. Esta opción omite la validación del certificado del servidor; por defecto está desactivada. Reinicia los procesos al cambiar la configuración.
+
+La estructura del stock por bodega se basa en los nombres del manual y debe verificarse con una respuesta real del servicio. El permiso protege tanto la página como la API; los valores cifrados y el token permanecen en el servidor.
+
 Activa el entorno virtual e instala las dependencias:
 
 ```bash
@@ -141,6 +163,20 @@ Inicia solo una instancia de Beat para evitar duplicar tareas programadas. El ar
 ## Tareas y programación
 
 ### Pedidos AnyMarket
+
+#### Creación manual en I-NET (pruebas)
+
+#### Maestro de documentos I-NET
+
+En Django Admin, **AnyMarket → Reglas de documentos I-NET** permite mantener los códigos para boleta, factura y pedido. Asigna al personal autorizado los permisos de visualización y modificación del modelo. Cada regla incluye tipo, código I-NET, descripción, canal y estado activo. Usa el código original `marketPlace` de AnyMarket como canal; deja el canal vacío para la regla general. La resolución disponible prioriza una regla activa del canal y, si no existe, usa la general. No se admiten dos reglas para el mismo tipo y canal, aunque difieran en mayúsculas; para cambiar un código, edita la regla existente.
+
+Este maestro prepara la configuración para la futura emisión de boletas y facturas; todavía no determina el documento que envía el botón actual, que sigue creando pedidos con `INET_PEDIDO_DOCUMENTO`. La emisión de documentos comerciales requiere completar sus datos de cliente, recaudación y reglas particulares antes de activarse.
+
+La columna I-NET permite crear individualmente pedidos pagados pendientes de despacho; no se envían automáticamente. El usuario necesita `anymarket.change_pedido`. Se muestran el número devuelto por I-NET, los errores y el historial de intentos. Las referencias son `ANYMARKET-<id de AnyMarket>` y deben ser únicas en I-NET. La operación requiere aplicar migraciones y compilar el frontend. Configura `WSCOMERCIAL`, `URL_WSCOMERCIAL` y las credenciales SSI en el entorno del servidor.
+
+Los códigos iniciales de documento, bodega, sucursal, lista de precio, condición, vendedor y cliente se pueden cambiar con `INET_PEDIDO_DOCUMENTO`, `INET_PEDIDO_BODEGA`, `INET_PEDIDO_SUCURSAL`, `INET_PEDIDO_LISTA`, `INET_PEDIDO_CONDICION`, `INET_PEDIDO_VENDEDOR` e `INET_PEDIDO_CLIENTE`. El envío usa `sku.partnerId` como producto y `freight` como producto `60000`. Se asume IVA incluido del 19 % para todas las líneas; los descuentos de línea se reflejan en su precio final. El sistema rechaza pedidos cuyo total no coincida con la suma de líneas y envío. Confirma en un entorno de pruebas que los conceptos y precios correspondan a la configuración del documento y los productos; los impuestos adicionales no se calculan.
+
+Si se pierde la respuesta o el proceso se interrumpe durante el envío, el estado queda en revisión o enviando y no se permite reintentar automáticamente. Consulta la referencia en I-NET y concilia el resultado antes de cualquier corrección manual. Los errores de I-NET se conservan en la base principal y son visibles para usuarios con permiso de modificación; aplica la política de retención y acceso correspondiente.
 
 La integración consulta pedidos creados desde el 27-10-2026 a las 00:00 en `ANYMARKET_TIME_ZONE` (por defecto `America/Santiago`, horario de Chile continental). La carga inicial importa pedidos en estado `PAID_WAITING_SHIP`; las consultas incrementales incorporan los que alcancen ese estado y actualizan los ya importados, incluso si se cancelan. La consulta inicial no incluye pedidos que ya hayan avanzado a otro estado. Los datos completos se guardan en la base principal y todavía no se envían a INET. Define el acceso y la retención de esta base teniendo en cuenta que los pedidos contienen datos personales.
 

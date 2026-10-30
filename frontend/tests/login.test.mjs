@@ -27,11 +27,15 @@ function createContext(opciones = {}) {
         attributes: {},
         listeners: {},
         textContent: '',
+        children: [],
         classList: new ClassList(),
         addEventListener(type, callback) { this.listeners[type] = callback; },
         setAttribute(name, value) { this.attributes[name] = value; },
         removeAttribute(name) { delete this.attributes[name]; },
         querySelectorAll() { return []; },
+        append(...nodes) { this.children.push(...nodes); },
+        replaceChildren(...nodes) { this.children = nodes; },
+        showModal() { this.open = true; },
         reset() { this.wasReset = true; },
         click() { this.wasClicked = true; },
       });
@@ -44,10 +48,11 @@ function createContext(opciones = {}) {
   const context = {
     document: {
       querySelector: element,
+      getElementById: id => element(`#${id}`),
       documentElement: { classList: new ClassList() },
       addEventListener() {},
       createElement(tag) {
-        const nodo = { tag, attributes: {}, click() { this.wasClicked = true; } };
+        const nodo = { tag, attributes: {}, children: [], append(...nodes) { this.children.push(...nodes); }, click() { this.wasClicked = true; } };
         if (tag === 'a') enlaces.push(nodo);
         return nodo;
       },
@@ -75,6 +80,18 @@ function createContext(opciones = {}) {
   };
   return { context, element, storage, enlaces };
 }
+
+test('el historial muestra intentos en el modal sin interpretar el contenido como HTML', async () => {
+  const { context, element } = createContext();
+  await run(context);
+  vm.runInNewContext(`showInetHistory([{fecha: '2026-10-27T12:00:00Z', resultado: 'error', detalle: '<script>error</script>'}], 'OC-123')`, context);
+  assert.equal(element('#inet-modal').open, true);
+  assert.equal(element('#inet-modal-title').textContent, 'Historial de envíos');
+  assert.match(element('#inet-modal-description').textContent, /OC-123/);
+  const item = element('#inet-modal-content').children[0].children[0];
+  assert.equal(item.children[0].children[0].textContent, 'Error');
+  assert.equal(item.children[1].textContent, '<script>error</script>');
+});
 
 async function run(context) {
   const script = (await readFile(new URL('../src/scripts/app.js', import.meta.url), 'utf8'))

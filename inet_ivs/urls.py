@@ -18,18 +18,26 @@ from django.contrib import admin
 from django.urls import include, path
 from django.views.generic import RedirectView
 from modulo.acceso import api
+from modulo.informat import api as informat_api
+from modulo.informat import catalogo as informat_catalogo
 from . import views
 
 urlpatterns = [
     path('api/v1/sesion/', api.sesion),
+    path('api/v1/informat/stock/', informat_api.stock),
+    path('api/v1/informat/token/', informat_api.token_manual),
+    path('api/v1/informat/productos/', informat_catalogo.productos),
     path('api/v1/ingresar/', api.ingresar),
     path('api/v1/salir/', api.salir),
     path('api/v1/pedidos/', api.pedidos),
     path('api/v1/pedidos/exportar/', api.exportar),
     path('api/v1/pedidos/sincronizar/', api.sincronizar),
+    path('api/v1/pedidos/<uuid:uuid_pedido>/inet/', api.crear_pedido_inet),
+    path('api/v1/pedidos/<uuid:uuid_pedido>/inet/errores/', api.errores_pedido_inet),
     path('admin/', admin.site.urls),
     path('', views.inicio, name='inicio'),
     path('pedidos/', views.pedidos, name='pedidos'),
+    path('stock/', views.stock, name='stock'),
     path('login/', RedirectView.as_view(url='/', permanent=False), name='login'),
     path('anymarket/', include('modulo.anymarket.urls')),
 ]

@@ -22,3 +22,11 @@ def inicio(request: HttpRequest) -> HttpResponse:
 @never_cache
 def pedidos(request: HttpRequest) -> HttpResponse:
     return inicio(request)
+
+
+@login_required
+@permission_required('informat.consultar_stock', raise_exception=True)
+@require_safe
+@never_cache
+def stock(request: HttpRequest) -> HttpResponse:
+    return inicio(request)
