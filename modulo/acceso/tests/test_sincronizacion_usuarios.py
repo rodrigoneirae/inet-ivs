@@ -1,6 +1,6 @@
 from unittest.mock import MagicMock, patch
 
-from django.contrib.auth import authenticate, get_user_model
+from django.contrib.auth import authenticate, get_backends, get_user_model
 from django.db import OperationalError
 from django.test import TestCase, override_settings
 from django.urls import reverse
@@ -17,7 +17,12 @@ class AccesoTests(TestCase):
     def setUp(self) -> None:
         self.registro = RegistroOrigen(12, 'operador', 'clave-original', 'usuario@example.com')
 
-    @patch('modulo.acceso.backends.obtener_registros')
+    def test_backend_configurado_se_puede_cargar(self) -> None:
+        from modulo.acceso.backends import IVSBackend
+
+        self.assertTrue(any(isinstance(backend, IVSBackend) for backend in get_backends()))
+
+    @patch('modulo.acceso.backends.backends.obtener_registros')
     def test_ingreso_importa_y_actualiza_clave(self, obtener: MagicMock) -> None:
         obtener.return_value = [self.registro]
         usuario = authenticate(username='operador', password='clave-original')
@@ -30,7 +35,7 @@ class AccesoTests(TestCase):
         self.assertTrue(usuario.check_password('nueva-clave'))
         self.assertEqual(UsuarioOrigen.objects.count(), 1)
 
-    @patch('modulo.acceso.backends.obtener_registros')
+    @patch('modulo.acceso.backends.backends.obtener_registros')
     def test_rechaza_duplicados_y_cuentas_locales(self, obtener: MagicMock) -> None:
         obtener.return_value = [self.registro, RegistroOrigen(13, 'operador', 'otra', '')]
         self.assertIsNone(authenticate(username='operador', password='clave-original'))
@@ -39,7 +44,7 @@ class AccesoTests(TestCase):
         self.assertIsNone(authenticate(username='operador', password='clave-original'))
         self.assertIsNone(authenticate(username='operador', password='local'))
 
-    @patch('modulo.acceso.backends.obtener_registros', side_effect=OperationalError('sin conexión'))
+    @patch('modulo.acceso.backends.backends.obtener_registros', side_effect=OperationalError('sin conexión'))
     def test_no_autentica_si_falla_origen(self, obtener: MagicMock) -> None:
         with self.assertLogs('modulo.acceso.backends', level='ERROR'):
             self.assertIsNone(authenticate(username='operador', password='clave-original'))

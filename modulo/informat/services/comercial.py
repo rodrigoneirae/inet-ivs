@@ -7,7 +7,7 @@ from typing import Any
 
 from django.conf import settings
 
-from .services import ServicioInformatError, _post_json
+from .stock import ServicioInformatError, _post_json
 from .clientes import ConsultaClienteError, existe_cliente
 
 logger = logging.getLogger(__name__)

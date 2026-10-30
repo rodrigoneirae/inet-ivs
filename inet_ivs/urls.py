@@ -21,6 +21,7 @@ from . import views
 
 urlpatterns = [
     path('api/v1/', include('modulo.acceso.urls')),
+    path('api/v1/', include('modulo.anymarket.urls.api')),
     path('api/v1/', include('modulo.informat.urls')),
     path('admin/', admin.site.urls),
     path('', views.inicio, name='inicio'),

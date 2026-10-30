@@ -1,6 +1,6 @@
 """Resolución de códigos comerciales configurados para AnyMarket."""
 
-from .models import ReglaDocumentoInet
+from ..models import ReglaDocumentoInet
 
 
 def buscar_regla(tipo: str, canal: str) -> ReglaDocumentoInet | None:

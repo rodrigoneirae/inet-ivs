@@ -2,7 +2,7 @@ from decimal import Decimal
 
 from django.test import SimpleTestCase
 
-from ..importes_inet import ImportePedidoError, calcular_importes
+from ..services.importes_inet import ImportePedidoError, calcular_importes
 
 
 class ImportesInetTests(SimpleTestCase):

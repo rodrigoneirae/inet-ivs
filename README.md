@@ -4,7 +4,39 @@ Proyecto Django preparado para ASGI, Channels, Celery, Redis y PostgreSQL. Docke
 
 ## Organización de aplicaciones
 
-Las aplicaciones Django se encuentran en `modulo/<aplicacion>/`. Los modelos se organizan en `models/`, con archivos descriptivos y exportaciones en `__init__.py` para que Django los descubra. Las vistas, rutas, servicios y pruebas se agrupan respectivamente en `views/`, `urls/`, `services/` y `tests/`; cada archivo se nombra según su responsabilidad. Las migraciones permanecen en `migrations/`. El enrutador principal incluye las rutas de cada aplicación y las URL públicas conservan sus direcciones.
+Las aplicaciones Django se encuentran en `modulo/<aplicacion>/`. La estructura actual, resumida por responsabilidad, es:
+
+```text
+modulo/
+├── acceso/
+│   ├── backends/        # autenticación IVS
+│   ├── management/      # comandos de administración
+│   ├── models/          # usuario de origen
+│   ├── services/        # sincronización de usuarios
+│   ├── tasks/           # tareas Celery de acceso
+│   ├── tests/
+│   ├── urls/            # rutas de sesión
+│   └── views/           # API de sesión
+├── anymarket/
+│   ├── forms/           # filtros de pedidos
+│   ├── models/          # pedidos, intentos, reglas y sincronización
+│   ├── services/        # sincronización, I-NET, importes y auditoría
+│   ├── tasks/           # tareas Celery de pedidos
+│   ├── tests/
+│   ├── urls/            # rutas de pedidos y API
+│   └── views/           # vistas y API de pedidos
+└── informat/
+    ├── docs/
+    ├── models/          # consulta de stock y productos I-NET
+    ├── services/        # clientes, comercial, stock y tokens
+    ├── tests/
+    ├── urls/
+    └── views/           # API de stock y catálogo
+```
+
+Cada aplicación conserva `apps.py` y `migrations/`; AnyMarket también conserva `admin.py`. Dentro de cada carpeta se usan archivos descriptivos por responsabilidad. Las carpetas Python contienen `__init__.py`: en particular, `models/__init__.py` exporta los modelos para que Django los descubra y `backends/__init__.py` exporta `IVSBackend` para la ruta configurada en Django.
+
+Celery descubre el paquete `tasks` de cada aplicación. Su `__init__.py` importa las tareas definidas en `tasks/tasks.py`, que declaran nombres explícitos compatibles con Celery Beat y los mensajes existentes. Al añadir una tarea, impórtala en el `__init__.py` y utiliza un nombre estable; si se programa, usa ese mismo nombre en Beat. El enrutador principal incluye las rutas de cada aplicación.
 
 ## Desarrollo web con Django y Astro
 
@@ -178,7 +210,7 @@ El botón de creación utiliza estas reglas para elegir el código de boleta o f
 
 El listado AnyMarket permite crear manualmente boletas o facturas para pedidos pagados pendientes de despacho; requiere `anymarket.change_pedido`. La columna I-NET muestra el número devuelto, los errores y el historial de intentos. Las referencias son `ANYMARKET-<id de AnyMarket>` y deben ser únicas en I-NET. Se incluye recaudación por el total de la venta con una sola forma de pago; `INET_RECAUDACION_EQUIPO` (por defecto 1), `INET_RECAUDACION_CAJERO` (0) e `INET_RECAUDACION_FORMA_PAGO` (0, efectivo en esta instalación) deben corresponder a los maestros I-NET. No se determina automáticamente la forma de pago real de AnyMarket. Otras formas de pago podrían requerir datos adicionales y no están implementadas. Para facturas se validan RUT, razón social, giro y dirección; si faltan, se informa el error antes de contactar I-NET.
 
-Los pedidos cuyo campo `fulfillment` es el booleano `true` no se envían a I-NET; la interfaz los identifica como no aplicables y la API también rechaza su envío. El servicio común `modulo.informat.comercial.crear_documento` recibe un documento ya construido, envía al servicio y clasifica el resultado; es independiente de AnyMarket. Cada integración que lo utilice debe validar sus datos y cliente, autorizar la operación, conservar la solicitud y controlar concurrencia y resultados inciertos antes de reintentar. La integración de AnyMarket realiza esos controles y conserva su propio historial.
+Los pedidos cuyo campo `fulfillment` es el booleano `true` no se envían a I-NET; la interfaz los identifica como no aplicables y la API también rechaza su envío. El servicio común `modulo.informat.services.comercial.crear_documento` recibe un documento ya construido, envía al servicio y clasifica el resultado; es independiente de AnyMarket. Cada integración que lo utilice debe validar sus datos y cliente, autorizar la operación, conservar la solicitud y controlar concurrencia y resultados inciertos antes de reintentar. La integración de AnyMarket realiza esos controles y conserva su propio historial.
 
 Antes de enviar, se comprueba que el cliente incluido en el documento exista en `dbo.CLIENTD` de SQL Server con `CliTip=1` y la secuencia indicada (actualmente 0). El usuario SQL requiere permiso de lectura sobre esa tabla. Si no existe o la consulta no está disponible, el documento queda pendiente y el historial explica el motivo; se puede reintentar después de crear el cliente manualmente. La verificación no certifica que el cliente esté vigente o habilitado para facturar: esas reglas las valida I-NET. En boletas se consulta el cliente genérico configurado; en facturas, el RUT de facturación de AnyMarket.
 

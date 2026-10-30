@@ -8,7 +8,7 @@ from django.test import Client, RequestFactory, SimpleTestCase, override_setting
 from ..views.stock import stock, token_manual
 from ..views.catalogo import productos
 from ..services import ServicioInformatError, ServicioInformatTimeout, _post_json, consultar_stock
-from ..tokens import guardar_token_manual, obtener_token
+from ..services.tokens import guardar_token_manual, obtener_token
 
 
 class FakeRedis:
@@ -36,7 +36,7 @@ class ConsultaStockTests(SimpleTestCase):
     def setUp(self) -> None:
         super().setUp()
         self.redis = FakeRedis()
-        patcher = patch('modulo.informat.tokens._redis', return_value=self.redis)
+        patcher = patch('modulo.informat.services.tokens._redis', return_value=self.redis)
         patcher.start()
         self.addCleanup(patcher.stop)
 

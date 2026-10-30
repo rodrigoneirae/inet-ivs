@@ -7,6 +7,8 @@ Estas reglas se aplican a todo el repositorio y a cualquier código generado o m
 - Crea cada nueva aplicación Django dentro de `modulo/<nombre_app>/`. Usa nombres descriptivos en minúsculas y `snake_case`. Configura el paquete, `AppConfig.name` e `INSTALLED_APPS` con la ruta completa `modulo.<nombre_app>`; verifica que Django descubra modelos, migraciones y pruebas.
 - `inet_ivs/` contiene la configuración del proyecto. `theme/` es una aplicación existente: no la muevas ni reestructures aplicaciones existentes sin una solicitud explícita y un plan de migración.
 - Organiza cada aplicación por dominio y responsabilidad. Mantén vistas, tareas y consumidores delgados; ubica la lógica de negocio reutilizable en servicios o componentes apropiados. Evita dependencias circulares y abstracciones innecesarias.
+- Agrupa modelos, vistas, rutas, servicios y pruebas en paquetes `models/`, `views/`, `urls/`, `services/` y `tests/`, con archivos descriptivos por responsabilidad. Cuando corresponda, usa también `forms/`, `backends/` y `tasks/`. Conserva `apps.py`, `migrations/`, `admin.py` y `management/` según las convenciones y necesidades de Django.
+- Exporta los modelos desde `models/__init__.py` y los backends usados en la configuración desde su paquete. Para Celery, importa las tareas en `tasks/__init__.py` y conserva nombres explícitos estables que coincidan con Beat y los mensajes existentes; verifica el descubrimiento de Django y Celery después de reorganizar archivos.
 - Usa las capacidades de Django y las dependencias existentes antes de añadir bibliotecas. Justifica dependencias nuevas y comprueba compatibilidad y mantenimiento.
 - No introduzcas cambios ajenos a la tarea. Conserva la compatibilidad existente salvo que se solicite lo contrario.
 

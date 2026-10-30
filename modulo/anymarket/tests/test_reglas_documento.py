@@ -5,7 +5,7 @@ from django.test import TestCase
 from django.urls import reverse
 
 from ..models import ReglaDocumentoInet
-from ..reglas_documento import buscar_regla
+from ..services.reglas_documento import buscar_regla
 
 
 class ReglasDocumentoTests(TestCase):

@@ -6,24 +6,24 @@ from django.contrib.auth.models import Permission
 from django.test import TestCase, override_settings
 
 from modulo.informat.services import ServicioInformatTimeout
-from modulo.informat.clientes import ConsultaClienteError
+from modulo.informat.services.clientes import ConsultaClienteError
 
-from ..inet import crear_pedido, preparar_documento, preparar_venta
-from ..importes_inet import ImportePedidoError
+from ..services.inet import crear_pedido, preparar_documento, preparar_venta
+from ..services.importes_inet import ImportePedidoError
 from ..models import Pedido, ReglaDocumentoInet
-from ..auditoria_inet import descifrar_mensaje
+from ..services.auditoria_inet import descifrar_mensaje
 
 
 class CrearPedidoInetTests(TestCase):
     def setUp(self) -> None:
-        patcher = patch('modulo.informat.comercial.existe_cliente', return_value=True)
+        patcher = patch('modulo.informat.services.comercial.existe_cliente', return_value=True)
         self.cliente_existe = patcher.start()
         self.addCleanup(patcher.stop)
         self.pedido = Pedido.objects.create(anymarket_id=123, creado_en=datetime(2026, 10, 27, tzinfo=timezone.utc),
             estado='PAID_WAITING_SHIP', datos={'items': [{'sku': {'partnerId': '001'}, 'amount': 1, 'total': 1190}],
                                                'freight': 119, 'total': 1309})
 
-    @patch('modulo.informat.comercial.insertar_documento')
+    @patch('modulo.informat.services.comercial.insertar_documento')
     def test_creacion_registra_numero_y_no_repite(self, enviar: object) -> None:
         enviar.return_value = {'RespuestaProceso': {'Tipo': 0, 'Datos': [
             {'NOMBRE': 'DOCUMENTO_NUMERO', 'DATO': '12345'},
@@ -40,7 +40,7 @@ class CrearPedidoInetTests(TestCase):
             crear_pedido(self.pedido.uuid)
         self.assertEqual(enviar.call_count, 1)
 
-    @patch('modulo.informat.comercial.insertar_documento')
+    @patch('modulo.informat.services.comercial.insertar_documento')
     def test_respuesta_sin_tipo_conserva_numero_sin_inventar_tipo(self, enviar: object) -> None:
         enviar.return_value = {'RespuestaProceso': {'Tipo': 0, 'Datos': [{'NOMBRE': 'DOCUMENTO_NUMERO', 'DATO': '42'}]}}
         crear_pedido(self.pedido.uuid)
@@ -65,7 +65,7 @@ class CrearPedidoInetTests(TestCase):
         self.assertEqual(linea['PrecioLista'], 333.3333)
         self.assertEqual(linea['TotalLinea'], 1000)
 
-    @patch('modulo.informat.comercial.insertar_documento')
+    @patch('modulo.informat.services.comercial.insertar_documento')
     def test_error_registra_historial_y_permite_reintento(self, enviar: object) -> None:
         enviar.return_value = {'RespuestaProceso': {'Tipo': 1, 'Errores': [{'ErrorDescripcion': 'Producto inexistente'}]}}
         crear_pedido(self.pedido.uuid)
@@ -75,7 +75,7 @@ class CrearPedidoInetTests(TestCase):
         crear_pedido(self.pedido.uuid)
         self.assertEqual(enviar.call_count, 2)
 
-    @patch('modulo.informat.comercial.insertar_documento', side_effect=ServicioInformatTimeout('timeout'))
+    @patch('modulo.informat.services.comercial.insertar_documento', side_effect=ServicioInformatTimeout('timeout'))
     def test_timeout_bloquea_reintento(self, enviar: object) -> None:
         crear_pedido(self.pedido.uuid)
         self.pedido.refresh_from_db()
@@ -91,7 +91,7 @@ class CrearPedidoInetTests(TestCase):
         self.assertEqual(self.client.post(url).status_code, 403)
         usuario.user_permissions.add(Permission.objects.get(codename='change_pedido', content_type__app_label='anymarket'))
         self.client.force_login(get_user_model().objects.get(pk=usuario.pk))
-        with patch('modulo.informat.comercial.insertar_documento') as enviar:
+        with patch('modulo.informat.services.comercial.insertar_documento') as enviar:
             respuesta = self.client.post(url)
             self.assertEqual(respuesta.status_code, 409)
             self.assertIn('No se puede determinar', respuesta.json()['error'])
@@ -103,7 +103,7 @@ class CrearPedidoInetTests(TestCase):
         usuario = get_user_model().objects.create_user(username='emisor_full')
         usuario.user_permissions.add(Permission.objects.get(codename='change_pedido', content_type__app_label='anymarket'))
         self.client.force_login(usuario)
-        with patch('modulo.informat.comercial.insertar_documento') as enviar:
+        with patch('modulo.informat.services.comercial.insertar_documento') as enviar:
             for venta in (False, True):
                 with self.subTest(venta=venta), self.assertRaisesMessage(ValueError, 'fulfillment'):
                     crear_pedido(self.pedido.uuid, venta=venta)
@@ -157,7 +157,7 @@ class CrearPedidoInetTests(TestCase):
             {'NOMBRE': 'DOCUMENTO_CODIGO', 'DATO': '756'},
             {'NOMBRE': 'DOCUMENTO_NUMERO', 'DATO': '123'},
         ]}}
-        with patch('modulo.informat.comercial.insertar_documento', return_value=respuesta_inet) as enviar:
+        with patch('modulo.informat.services.comercial.insertar_documento', return_value=respuesta_inet) as enviar:
             respuesta = self.client.post(f'/api/v1/pedidos/{self.pedido.uuid}/inet/')
         self.assertEqual(respuesta.status_code, 200)
         self.cliente_existe.assert_called_once_with('85644700', 0)
@@ -182,7 +182,7 @@ class CrearPedidoInetTests(TestCase):
         self.pedido.datos['metadata'] = {'invoiceRequired': 'boleta'}
         self.pedido.save(update_fields=['datos'])
         self.cliente_existe.return_value = False
-        with patch('modulo.informat.comercial.insertar_documento') as enviar:
+        with patch('modulo.informat.services.comercial.insertar_documento') as enviar:
             crear_pedido(self.pedido.uuid, venta=True)
         enviar.assert_not_called()
         self.pedido.refresh_from_db()
@@ -190,7 +190,7 @@ class CrearPedidoInetTests(TestCase):
         self.assertIn('Créalo manualmente', self.pedido.inet_error)
         self.assertEqual(self.pedido.intentos_inet.get().resultado, 'pendiente')
         self.cliente_existe.return_value = True
-        with patch('modulo.informat.comercial.insertar_documento', return_value={'RespuestaProceso': {'Tipo': 0, 'Datos': [{'NOMBRE': 'DOCUMENTO_NUMERO', 'DATO': '123'}]}}) as enviar:
+        with patch('modulo.informat.services.comercial.insertar_documento', return_value={'RespuestaProceso': {'Tipo': 0, 'Datos': [{'NOMBRE': 'DOCUMENTO_NUMERO', 'DATO': '123'}]}}) as enviar:
             crear_pedido(self.pedido.uuid, venta=True)
         enviar.assert_called_once()
 
@@ -199,7 +199,7 @@ class CrearPedidoInetTests(TestCase):
         self.pedido.datos['metadata'] = {'invoiceRequired': 'boleta'}
         self.pedido.save(update_fields=['datos'])
         self.cliente_existe.side_effect = ConsultaClienteError('Maestro no disponible.')
-        with patch('modulo.informat.comercial.insertar_documento') as enviar:
+        with patch('modulo.informat.services.comercial.insertar_documento') as enviar:
             crear_pedido(self.pedido.uuid, venta=True)
         enviar.assert_not_called()
         self.pedido.refresh_from_db()
@@ -211,7 +211,7 @@ class CrearPedidoInetTests(TestCase):
         self.pedido.save(update_fields=['datos'])
         respuesta = {'RespuestaProceso': {'Tipo': 0, 'Datos': [
             {'NOMBRE': 'DOCUMENTO_NUMERO', 'DATO': '123'}], 'Token': 'secreto'}}
-        with patch('modulo.informat.comercial.insertar_documento', return_value=respuesta):
+        with patch('modulo.informat.services.comercial.insertar_documento', return_value=respuesta):
             crear_pedido(self.pedido.uuid, venta=True)
         guardada = descifrar_mensaje(self.pedido.intentos_inet.get().respuesta_cifrada)
         self.assertNotIn('Token', guardada['RespuestaProceso'])

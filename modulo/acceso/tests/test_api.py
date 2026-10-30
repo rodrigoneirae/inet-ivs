@@ -5,6 +5,7 @@ from django.contrib.auth.models import AnonymousUser
 from django.test import Client, RequestFactory, SimpleTestCase, override_settings
 
 from ..views import api
+from modulo.anymarket.views import api as pedidos_api
 
 
 @override_settings(CACHES={
@@ -18,7 +19,7 @@ class ApiTests(SimpleTestCase):
     def test_pedidos_requires_authentication(self) -> None:
         request = self.factory.get('/api/v1/pedidos/')
         request.user = AnonymousUser()
-        self.assertEqual(api.pedidos(request).status_code, 401)
+        self.assertEqual(pedidos_api.pedidos(request).status_code, 401)
 
     def test_admin_and_legacy_navigation_remain_available(self) -> None:
         client = Client()
@@ -30,10 +31,10 @@ class ApiTests(SimpleTestCase):
         request = self.factory.get('/api/v1/pedidos/')
         request.user = Mock(is_authenticated=True)
         request.user.has_perm.return_value = False
-        self.assertEqual(api.pedidos(request).status_code, 403)
+        self.assertEqual(pedidos_api.pedidos(request).status_code, 403)
 
     def test_actions_require_authentication_and_permission(self) -> None:
-        for view, method in ((api.exportar, self.factory.get), (api.sincronizar, self.factory.post)):
+        for view, method in ((pedidos_api.exportar, self.factory.get), (pedidos_api.sincronizar, self.factory.post)):
             request = method('/api/v1/pedidos/accion/')
             request.user = AnonymousUser()
             self.assertEqual(view(request).status_code, 401)
@@ -41,14 +42,14 @@ class ApiTests(SimpleTestCase):
             request.user.has_perm.return_value = False
             self.assertEqual(view(request).status_code, 403)
 
-    @patch('modulo.acceso.views.api.solicitar_sincronizacion')
+    @patch('modulo.anymarket.views.api.solicitar_sincronizacion')
     def test_sync_returns_task_status(self, solicitar: Mock) -> None:
         request = self.factory.post('/api/v1/pedidos/sincronizar/')
         request.user = Mock(is_authenticated=True)
         request.user.has_perm.return_value = True
         for result, status in (('success', 200), ('warning', 429), ('error', 503)):
             solicitar.return_value = (result, 'mensaje')
-            self.assertEqual(api.sincronizar(request).status_code, status)
+            self.assertEqual(pedidos_api.sincronizar(request).status_code, status)
 
     def test_sync_requires_csrf(self) -> None:
         response = Client(enforce_csrf_checks=True).post('/api/v1/pedidos/sincronizar/')
@@ -64,28 +65,28 @@ class ApiTests(SimpleTestCase):
         request = self.factory.post('/api/v1/pedidos/sincronizar/')
         request.user = Mock(is_authenticated=True)
         request.user.has_perm.return_value = True
-        self.assertEqual(api.sincronizar(request).status_code, 429)
+        self.assertEqual(pedidos_api.sincronizar(request).status_code, 429)
         enqueue.assert_called_once_with(retry=False)
 
-    @patch('modulo.acceso.views.api.exportar_pedidos')
+    @patch('modulo.anymarket.views.api.exportar_pedidos')
     def test_export_passes_filters_to_existing_view(self, exportar: Mock) -> None:
         from django.http import HttpResponse
         request = self.factory.get('/api/v1/pedidos/exportar/', {'canal': 'shopify'})
         request.user = Mock(is_authenticated=True)
         request.user.has_perm.return_value = True
         exportar.return_value = HttpResponse(b'excel')
-        self.assertEqual(api.exportar(request).status_code, 200)
+        self.assertEqual(pedidos_api.exportar(request).status_code, 200)
         exportar.assert_called_once_with(request)
 
     def test_invalid_date_range_is_rejected(self) -> None:
         request = self.factory.get('/api/v1/pedidos/', {'desde': '2026-10-20', 'hasta': '2026-10-01'})
         request.user = Mock(is_authenticated=True)
         request.user.has_perm.return_value = True
-        self.assertEqual(api.pedidos(request).status_code, 400)
+        self.assertEqual(pedidos_api.pedidos(request).status_code, 400)
 
-    @patch('modulo.acceso.views.api.Sincronizacion.objects')
-    @patch('modulo.acceso.views.api.Pedido.objects')
-    @patch('modulo.acceso.views.api.consulta_pedidos')
+    @patch('modulo.anymarket.views.api.Sincronizacion.objects')
+    @patch('modulo.anymarket.views.api.Pedido.objects')
+    @patch('modulo.anymarket.views.api.consulta_pedidos')
     def test_filters_and_options(self, consulta: Mock, manager: Mock, sincronizaciones: Mock) -> None:
         request = self.factory.get('/api/v1/pedidos/', {
             'desde': '2026-10-01', 'hasta': '2026-10-20', 'canal': 'shopify',
@@ -99,7 +100,7 @@ class ApiTests(SimpleTestCase):
         sincronizaciones.filter.return_value = []
         choices = manager.exclude.return_value.values_list.return_value.distinct.return_value.order_by.return_value
         choices.__getitem__.side_effect = [['shopify'], ['paid']]
-        response = api.pedidos(request)
+        response = pedidos_api.pedidos(request)
         self.assertEqual(response.status_code, 200)
         consulta.assert_called_once_with(request)
         self.assertEqual(request.GET['desde'], '2026-10-01')

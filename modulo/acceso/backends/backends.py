@@ -6,7 +6,7 @@ from django.contrib.auth.models import AbstractBaseUser
 from django.db import DatabaseError, IntegrityError
 from django.utils.crypto import constant_time_compare
 
-from .services import obtener_registros, registros_validos, sincronizar_registro
+from modulo.acceso.services import obtener_registros, registros_validos, sincronizar_registro
 
 logger = logging.getLogger(__name__)
 

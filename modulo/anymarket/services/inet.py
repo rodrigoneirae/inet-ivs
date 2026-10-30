@@ -10,12 +10,12 @@ from django.conf import settings
 from django.db import transaction
 from django.utils import timezone
 
-from modulo.informat.comercial import crear_documento, validar_cliente_documento
-from modulo.informat.clientes import ConsultaClienteError
+from modulo.informat.services.comercial import crear_documento, validar_cliente_documento
+from modulo.informat.services.clientes import ConsultaClienteError
 
 from .importes_inet import ImportePedidoError, calcular_importes
 from .auditoria_inet import cifrar_mensaje
-from .models import IntentoInet, Pedido
+from ..models import IntentoInet, Pedido
 from .reglas_documento import buscar_regla
 from .tipo_documento import tipo_documento_solicitado
 
