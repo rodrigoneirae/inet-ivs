@@ -2,7 +2,7 @@ from unittest.mock import patch
 
 from django.test import SimpleTestCase, override_settings
 
-from .comercial import insertar_documento
+from .comercial import crear_documento, insertar_documento
 from .services import ServicioInformatError, ServicioInformatTimeout
 
 
@@ -10,6 +10,22 @@ from .services import ServicioInformatError, ServicioInformatTimeout
                    APLID='aplicacion', WSCOMERCIAL='comercial',
                    URL_WSCOMERCIAL='https://inet.example/comercial')
 class DocumentoComercialTests(SimpleTestCase):
+    @patch('modulo.informat.comercial.insertar_documento')
+    def test_servicio_global_conserva_respuesta_y_numero(self, enviar: object) -> None:
+        respuesta = {'RespuestaProceso': {'Tipo': 0, 'Datos': [
+            {'NOMBRE': 'DOCUMENTO_NUMERO', 'DATO': '42'},
+            {'NOMBRE': 'DOCUMENTO_CODIGO', 'DATO': '777'}]}}
+        enviar.return_value = respuesta
+        resultado = crear_documento({'Encabezado': {}})
+        self.assertEqual((resultado.estado, resultado.tipo_documento, resultado.numero), ('creado', '777', '42'))
+        self.assertEqual(resultado.respuesta, respuesta)
+
+    @patch('modulo.informat.comercial.insertar_documento')
+    def test_servicio_global_clasifica_errores_e_incertidumbre(self, enviar: object) -> None:
+        enviar.return_value = {'RespuestaProceso': {'Tipo': 1, 'Errores': [{'ErrorDescripcion': 'Cliente inválido'}]}}
+        self.assertEqual((crear_documento({}).estado, crear_documento({}).detalle), ('error', 'Cliente inválido'))
+        enviar.side_effect = ServicioInformatTimeout('timeout')
+        self.assertEqual(crear_documento({}).estado, 'revision')
     @patch('modulo.informat.comercial._post_json')
     def test_usa_funcionalidad_comercial_y_no_modifica_documento(self, post: object) -> None:
         post.side_effect = [

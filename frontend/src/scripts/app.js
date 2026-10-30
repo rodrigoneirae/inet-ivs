@@ -270,6 +270,14 @@ function renderTable(data) {
     columns: [...columns.map(([label, field, minWidth]) => ({
       title: `${label}${order === field ? (direction === 'asc' ? ' ▲' : ' ▼') : ''}`,
       field, minWidth,
+      ...(field === 'fulfillment' ? { formatter: cell => {
+        const row = cell.getRow().getData();
+        const span = document.createElement('span');
+        const documento = row.inet_estado === 'creado'
+          ? `Tipo: ${row.inet_tipo_documento || 'No disponible'} · N.º: ${row.inet_numero}` : '';
+        span.textContent = [row.fulfillment, documento].filter(Boolean).join(' · ');
+        return span;
+      } } : {}),
       ...(field === 'canal' ? { headerFilter: filterHeader(field, data.canales, canal), headerFilterFunc: () => true } : {}),
       ...(field === 'estado' ? { headerFilter: filterHeader(field, data.estados, estado), headerFilterFunc: () => true } : {}),
     })), {
@@ -281,11 +289,10 @@ function renderTable(data) {
         const row = cell.getRow().getData();
         const container = document.createElement('div');
         const status = document.createElement('span');
-        status.textContent = row.inet_estado === 'creado'
-          ? `Tipo: ${row.inet_tipo_documento || 'No disponible'} · N.º: ${row.inet_numero}`
-          : (row.inet_estado || 'pendiente');
+        status.textContent = row.inet_estado === 'creado' ? 'Creado'
+          : row.fulfillment ? 'No aplica · Fulfillment' : (row.inet_estado || 'pendiente');
         container.append(status);
-        if (puedeCrearInet && ['pendiente', 'error'].includes(row.inet_estado)) {
+        if (puedeCrearInet && !row.fulfillment && ['pendiente', 'error'].includes(row.inet_estado)) {
           const button = document.createElement('button');
           button.type = 'button'; button.className = 'btn btn-secondary btn-sm ml-2';
           button.textContent = row.inet_estado === 'error' ? 'Reintentar' : 'Crear';
@@ -299,14 +306,14 @@ function renderTable(data) {
           });
           container.append(button);
         }
-        if (puedeCrearInet && ['error', 'revision'].includes(row.inet_estado)) {
+        if (puedeCrearInet) {
           const history = document.createElement('button');
-          history.type = 'button'; history.className = 'btn btn-secondary btn-sm ml-2'; history.textContent = 'Ver errores';
+          history.type = 'button'; history.className = 'btn btn-secondary btn-sm ml-2'; history.textContent = 'Historial I-NET';
           history.addEventListener('click', async event => {
             event.stopPropagation();
             try {
               const data = await (await request(`/api/v1/pedidos/${row.uuid}/inet/errores/`)).json();
-              showInetHistory(data.intentos, row.pedido);
+              showInetHistory(data.intentos, row.pedido, row.uuid);
             } catch (error) { showInetModal(error.message, row.pedido); }
           });
           container.append(history);
@@ -332,7 +339,7 @@ function showInetModal(message, pedido) {
   openModal('inet-modal', 'No se pudo crear el pedido', `Pedido ${pedido} · Detalle de la operación en I-NET`, detail);
 }
 
-function showInetHistory(intentos, pedido) {
+function showInetHistory(intentos, pedido, pedidoUuid) {
   const list = document.createElement('ol');
   list.className = 'space-y-3';
   if (!intentos.length) {
@@ -360,6 +367,37 @@ function showInetHistory(intentos, pedido) {
     detail.className = 'mt-3 whitespace-pre-wrap break-words text-sm leading-relaxed text-ink';
     detail.textContent = intento.detalle || 'Sin detalle adicional.';
     item.append(header, detail);
+    if (intento.uuid && pedidoUuid) {
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'btn btn-secondary btn-sm mt-3';
+      button.textContent = 'Ver solicitud y respuesta';
+      const messages = document.createElement('div');
+      messages.className = 'mt-3 space-y-3';
+      messages.hidden = true;
+      button.addEventListener('click', async () => {
+        if (!messages.hidden) { messages.hidden = true; return; }
+        button.disabled = true;
+        try {
+          const data = await (await request(`/api/v1/pedidos/${pedidoUuid}/inet/intentos/${intento.uuid}/`)).json();
+          messages.replaceChildren();
+          for (const [label, value] of [['Solicitud', data.solicitud], ['Respuesta', data.respuesta]]) {
+            const section = document.createElement('section');
+            const heading = document.createElement('h3');
+            heading.className = 'text-sm font-semibold text-ink';
+            heading.textContent = label;
+            const pre = document.createElement('pre');
+            pre.className = 'mt-2 max-h-64 overflow-auto whitespace-pre-wrap break-all rounded-lg bg-surface p-3 text-xs text-ink';
+            pre.textContent = value === null ? 'No disponible para este intento.' : JSON.stringify(value, null, 2);
+            section.append(heading, pre);
+            messages.append(section);
+          }
+          messages.hidden = false;
+        } catch (error) { toast(error.message, 'error'); }
+        finally { button.disabled = false; }
+      });
+      item.append(button, messages);
+    }
     list.append(item);
   }
   openModal('inet-modal', 'Historial de envíos', `Pedido ${pedido} · Intentos registrados en I-NET`, list);

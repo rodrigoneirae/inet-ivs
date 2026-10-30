@@ -34,6 +34,7 @@ urlpatterns = [
     path('api/v1/pedidos/sincronizar/', api.sincronizar),
     path('api/v1/pedidos/<uuid:uuid_pedido>/inet/', api.crear_pedido_inet),
     path('api/v1/pedidos/<uuid:uuid_pedido>/inet/errores/', api.errores_pedido_inet),
+    path('api/v1/pedidos/<uuid:uuid_pedido>/inet/intentos/<uuid:uuid_intento>/', api.detalle_intento_inet),
     path('admin/', admin.site.urls),
     path('', views.inicio, name='inicio'),
     path('pedidos/', views.pedidos, name='pedidos'),

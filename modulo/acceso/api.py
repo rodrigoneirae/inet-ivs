@@ -1,4 +1,5 @@
 import hashlib
+import logging
 from zoneinfo import ZoneInfo
 
 from django import forms
@@ -13,9 +14,12 @@ from django.views.decorators.cache import never_cache
 from django.views.decorators.http import require_GET, require_POST
 
 from modulo.anymarket.views import consulta_pedidos, exportar_pedidos, solicitar_sincronizacion
-from modulo.anymarket.models import Pedido, Sincronizacion
+from modulo.anymarket.models import IntentoInet, Pedido, Sincronizacion
 from modulo.anymarket.inet import crear_pedido
 from modulo.anymarket.tipo_documento import tipo_documento_solicitado
+from modulo.anymarket.auditoria_inet import AuditoriaInetError, descifrar_mensaje
+
+logger = logging.getLogger(__name__)
 
 
 class LoginForm(forms.Form):
@@ -93,7 +97,7 @@ def crear_pedido_inet(request: HttpRequest, uuid_pedido: object) -> JsonResponse
     if not request.user.has_perm('anymarket.change_pedido'):
         return JsonResponse({'error': 'No tienes permiso para crear pedidos en I-NET.'}, status=403)
     try:
-        crear_pedido(uuid_pedido)
+        crear_pedido(uuid_pedido, venta=True)
     except Pedido.DoesNotExist:
         return JsonResponse({'error': 'Pedido no encontrado.'}, status=404)
     except ValueError as exc:
@@ -101,7 +105,7 @@ def crear_pedido_inet(request: HttpRequest, uuid_pedido: object) -> JsonResponse
     pedido = Pedido.objects.get(uuid=uuid_pedido)
     if pedido.inet_estado != 'creado':
         return JsonResponse({'error': pedido.inet_error}, status=409)
-    return JsonResponse({'mensaje': 'Pedido creado en I-NET.', 'numero': pedido.inet_numero,
+    return JsonResponse({'mensaje': 'Documento creado en I-NET.', 'numero': pedido.inet_numero,
                          'tipo_documento': pedido.inet_tipo_documento})
 
 
@@ -115,8 +119,28 @@ def errores_pedido_inet(request: HttpRequest, uuid_pedido: object) -> JsonRespon
     pedido = Pedido.objects.filter(uuid=uuid_pedido).first()
     if pedido is None:
         return JsonResponse({'error': 'Pedido no encontrado.'}, status=404)
-    intentos = pedido.intentos_inet.order_by('-fecha').values('fecha', 'resultado', 'detalle')[:100]
+    intentos = pedido.intentos_inet.order_by('-fecha').values('uuid', 'fecha', 'resultado', 'detalle')[:100]
     return JsonResponse({'intentos': list(intentos)})
+
+
+@require_GET
+@never_cache
+def detalle_intento_inet(request: HttpRequest, uuid_pedido: object, uuid_intento: object) -> JsonResponse:
+    if not request.user.is_authenticated:
+        return JsonResponse({'error': 'Inicia sesión.'}, status=401)
+    if not request.user.has_perm('anymarket.change_pedido'):
+        return JsonResponse({'error': 'No tienes permiso para consultar el detalle.'}, status=403)
+    intento = IntentoInet.objects.filter(uuid=uuid_intento, pedido__uuid=uuid_pedido).first()
+    if intento is None:
+        return JsonResponse({'error': 'Intento no encontrado.'}, status=404)
+    try:
+        solicitud = descifrar_mensaje(intento.solicitud_cifrada)
+        respuesta = descifrar_mensaje(intento.respuesta_cifrada)
+    except AuditoriaInetError:
+        logger.warning('No se pudieron descifrar los detalles de un intento I-NET.')
+        return JsonResponse({'error': 'No fue posible leer el detalle guardado.'}, status=503)
+    logger.info('Consulta del detalle de un intento I-NET por usuario interno %s.', request.user.pk)
+    return JsonResponse({'solicitud': solicitud, 'respuesta': respuesta})
 
 
 @require_GET
