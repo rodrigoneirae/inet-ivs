@@ -1,17 +1,6 @@
 from django.db import models
 
 
-class ConsultaStock(models.Model):
-    class Meta:
-        managed = False
-        default_permissions = ()
-        permissions = [
-            ('consultar_stock', 'Puede consultar el stock de Informat'),
-            ('administrar_token', 'Puede administrar el token de Informat'),
-        ]
-        verbose_name = 'consulta de stock'
-
-
 class ProductoVentaInet(models.Model):
     codigo = models.CharField(db_column='BarCod', primary_key=True, max_length=30)
     descripcion_corta = models.CharField(db_column='BarDscCor', max_length=25, null=True)

@@ -8,10 +8,10 @@ from django.test import TestCase, override_settings
 from modulo.informat.services import ServicioInformatTimeout
 from modulo.informat.clientes import ConsultaClienteError
 
-from .inet import crear_pedido, preparar_documento, preparar_venta
-from .importes_inet import ImportePedidoError
-from .models import Pedido, ReglaDocumentoInet
-from .auditoria_inet import descifrar_mensaje
+from ..inet import crear_pedido, preparar_documento, preparar_venta
+from ..importes_inet import ImportePedidoError
+from ..models import Pedido, ReglaDocumentoInet
+from ..auditoria_inet import descifrar_mensaje
 
 
 class CrearPedidoInetTests(TestCase):

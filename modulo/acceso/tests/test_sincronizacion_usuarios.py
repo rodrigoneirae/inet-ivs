@@ -5,8 +5,8 @@ from django.db import OperationalError
 from django.test import TestCase, override_settings
 from django.urls import reverse
 
-from .models import UsuarioOrigen
-from .services import RegistroOrigen, sincronizar_usuarios
+from ..models import UsuarioOrigen
+from ..services import RegistroOrigen, sincronizar_usuarios
 
 
 @override_settings(STORAGES={
@@ -44,7 +44,7 @@ class AccesoTests(TestCase):
         with self.assertLogs('modulo.acceso.backends', level='ERROR'):
             self.assertIsNone(authenticate(username='operador', password='clave-original'))
 
-    @patch('modulo.acceso.services.obtener_registros')
+    @patch('modulo.acceso.services.sincronizacion_usuarios.obtener_registros')
     def test_sincronizacion_omite_registros_invalidos(self, obtener: MagicMock) -> None:
         obtener.return_value = [self.registro, RegistroOrigen(13, 'sin-clave', '', '')]
         self.assertEqual(sincronizar_usuarios(), (1, 1))

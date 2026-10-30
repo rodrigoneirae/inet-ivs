@@ -11,8 +11,8 @@ from django.db import connections
 from django.test import TestCase, TransactionTestCase, override_settings
 from django.urls import reverse
 from openpyxl import load_workbook
-from .models import Pedido, Sincronizacion
-from .services import AnyMarketError, consultar_pedidos, guardar_pedido, reconciliar, sincronizar
+from ..models import Pedido, Sincronizacion
+from ..services import AnyMarketError, consultar_pedidos, guardar_pedido, reconciliar, sincronizar
 
 
 def pedido(identificador: int, estado: str, fecha: str = '2026-10-27T12:00:00Z') -> dict:
@@ -37,8 +37,8 @@ class ImportacionTests(TestCase):
             yield pedido(1, 'PAID_WAITING_SHIP')
             raise AnyMarketError('error')
 
-        with patch('modulo.anymarket.services.timezone.now', return_value=ahora), patch(
-            'modulo.anymarket.services.consultar_pedidos', side_effect=consulta
+        with patch('modulo.anymarket.services.sincronizacion_pedidos.timezone.now', return_value=ahora), patch(
+            'modulo.anymarket.services.sincronizacion_pedidos.consultar_pedidos', side_effect=consulta
         ), self.assertRaises(AnyMarketError):
             sincronizar()
         self.assertEqual(Pedido.objects.count(), 0)
@@ -48,8 +48,8 @@ class ImportacionTests(TestCase):
         ahora = datetime(2026, 11, 20, tzinfo=dt_timezone.utc)
         Sincronizacion.objects.create(clave='pedidos', actualizado_hasta=ahora - timedelta(days=14))
         Pedido.objects.create(anymarket_id=1, creado_en=ahora, estado='PAID_WAITING_SHIP', datos={})
-        with patch('modulo.anymarket.services.timezone.now', return_value=ahora), patch(
-            'modulo.anymarket.services.consultar_pedidos', return_value=[pedido(1, 'CANCELED')]
+        with patch('modulo.anymarket.services.sincronizacion_pedidos.timezone.now', return_value=ahora), patch(
+            'modulo.anymarket.services.sincronizacion_pedidos.consultar_pedidos', return_value=[pedido(1, 'CANCELED')]
         ) as consulta:
             sincronizar()
         self.assertEqual(consulta.call_count, 3)
@@ -66,16 +66,16 @@ class ImportacionTests(TestCase):
                 yield pedido(identificador, 'PAID_WAITING_SHIP')
             raise AnyMarketError('fallo de prueba')
 
-        with patch('modulo.anymarket.services.timezone.now', return_value=ahora), patch(
-            'modulo.anymarket.services.consultar_pedidos', side_effect=fallar
+        with patch('modulo.anymarket.services.sincronizacion_pedidos.timezone.now', return_value=ahora), patch(
+            'modulo.anymarket.services.sincronizacion_pedidos.consultar_pedidos', side_effect=fallar
         ), self.assertRaises(AnyMarketError):
             sincronizar()
         control = Sincronizacion.objects.get(clave='pedidos')
         self.assertEqual(control.actualizado_hasta, inicio)
         self.assertTrue(control.ultimo_error)
         self.assertEqual(Pedido.objects.count(), 100)
-        with patch('modulo.anymarket.services.timezone.now', return_value=ahora), patch(
-            'modulo.anymarket.services.consultar_pedidos', return_value=[pedido(i, 'PAID_WAITING_SHIP') for i in range(1, 101)]
+        with patch('modulo.anymarket.services.sincronizacion_pedidos.timezone.now', return_value=ahora), patch(
+            'modulo.anymarket.services.sincronizacion_pedidos.consultar_pedidos', return_value=[pedido(i, 'PAID_WAITING_SHIP') for i in range(1, 101)]
         ):
             sincronizar()
         control.refresh_from_db()
@@ -89,8 +89,8 @@ class ImportacionTests(TestCase):
         previo = ahora - timedelta(hours=2)
         Sincronizacion.objects.create(clave='pedidos', actualizado_hasta=previo)
         Pedido.objects.create(anymarket_id=1, creado_en=ahora, estado='PAID_WAITING_SHIP', datos={})
-        with patch('modulo.anymarket.services.timezone.now', return_value=ahora), patch(
-            'modulo.anymarket.services.consultar_pedidos', return_value=[pedido(1, 'CANCELED')]
+        with patch('modulo.anymarket.services.sincronizacion_pedidos.timezone.now', return_value=ahora), patch(
+            'modulo.anymarket.services.sincronizacion_pedidos.consultar_pedidos', return_value=[pedido(1, 'CANCELED')]
         ) as consulta:
             reconciliar()
         self.assertEqual(consulta.call_count, 2)
@@ -101,16 +101,16 @@ class ImportacionTests(TestCase):
 
     def test_carga_inicial_reanuda_intervalo_completado(self) -> None:
         ahora = datetime(2027, 5, 1, tzinfo=dt_timezone.utc)
-        with patch('modulo.anymarket.services.timezone.now', return_value=ahora), patch(
-            'modulo.anymarket.services.consultar_pedidos', side_effect=[[], AnyMarketError('error')]
+        with patch('modulo.anymarket.services.sincronizacion_pedidos.timezone.now', return_value=ahora), patch(
+            'modulo.anymarket.services.sincronizacion_pedidos.consultar_pedidos', side_effect=[[], AnyMarketError('error')]
         ), self.assertRaises(AnyMarketError):
             sincronizar()
         control = Sincronizacion.objects.get(clave='pedidos')
         self.assertIsNone(control.actualizado_hasta)
         self.assertIsNotNone(control.carga_inicial_hasta)
         cursor = control.carga_inicial_hasta
-        with patch('modulo.anymarket.services.timezone.now', return_value=ahora), patch(
-            'modulo.anymarket.services.consultar_pedidos', return_value=[]
+        with patch('modulo.anymarket.services.sincronizacion_pedidos.timezone.now', return_value=ahora), patch(
+            'modulo.anymarket.services.sincronizacion_pedidos.consultar_pedidos', return_value=[]
         ) as consulta:
             sincronizar()
         self.assertEqual(consulta.call_args_list[0].args[0]['createdAfter'], cursor.isoformat())
@@ -123,7 +123,7 @@ class ImportacionTests(TestCase):
             {'content': [pedido(1, 'PAID_WAITING_SHIP')], 'links': [{'rel': 'next', 'href': 'https://evil.invalid'}]},
             {'content': [pedido(2, 'PAID_WAITING_SHIP')], 'links': []},
         ]
-        with patch('modulo.anymarket.services.build_opener') as opener:
+        with patch('modulo.anymarket.services.sincronizacion_pedidos.build_opener') as opener:
             opener.return_value.open.side_effect = [BytesIO(json.dumps(p).encode()) for p in paginas]
             resultados = list(consultar_pedidos({'status': 'PAID_WAITING_SHIP'}))
         self.assertEqual(len(resultados), 2)
@@ -136,7 +136,7 @@ class ImportacionTests(TestCase):
     def test_ignora_enlace_next_incorrecto_en_ultima_pagina(self) -> None:
         pagina = {'content': [pedido(1, 'PAID_WAITING_SHIP')],
                   'page': {'number': 1, 'totalPages': 1}, 'links': [{'rel': 'next'}]}
-        with patch('modulo.anymarket.services.build_opener') as opener:
+        with patch('modulo.anymarket.services.sincronizacion_pedidos.build_opener') as opener:
             opener.return_value.open.return_value = BytesIO(json.dumps(pagina).encode())
             self.assertEqual(len(list(consultar_pedidos({}))), 1)
             self.assertEqual(opener.return_value.open.call_count, 1)
@@ -161,7 +161,7 @@ class BloqueoSincronizacionTests(TransactionTestCase):
         hilo.start()
         try:
             self.assertTrue(listo.wait(timeout=5))
-            with patch('modulo.anymarket.services.consultar_pedidos') as consulta:
+            with patch('modulo.anymarket.services.sincronizacion_pedidos.consultar_pedidos') as consulta:
                 sincronizar()
                 with self.assertRaises(AnyMarketError):
                     reconciliar()
@@ -237,7 +237,7 @@ class PedidosVistaTests(TestCase):
         self.assertEqual(valores.count('FullFillment'), 1)
         self.assertTrue(all(valor in ('FullFillment', None) for valor in valores))
 
-    @patch('modulo.anymarket.views.sincronizar_pedidos.apply_async')
+    @patch('modulo.anymarket.views.pedidos.sincronizar_pedidos.apply_async')
     def test_sincronizacion_manual_requiere_permiso_y_limita_solicitudes(self, encolar: MagicMock) -> None:
         cache.clear()
         url = reverse('anymarket:ejecutar_sincronizacion')

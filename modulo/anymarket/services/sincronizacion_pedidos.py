@@ -13,7 +13,7 @@ from django.db import connection, transaction
 from django.utils import timezone
 from django.utils.dateparse import parse_datetime
 
-from .models import Pedido, Sincronizacion
+from ..models import Pedido, Sincronizacion
 
 logger = logging.getLogger(__name__)
 INICIO = datetime(2026, 10, 27)

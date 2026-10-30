@@ -6,7 +6,7 @@ from urllib.request import HTTPRedirectHandler, Request, build_opener
 
 from django.conf import settings
 
-from .tokens import TokenStoreError, obtener_token
+from ..tokens import TokenStoreError, obtener_token
 
 logger = logging.getLogger(__name__)
 

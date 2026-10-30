@@ -4,8 +4,8 @@ from django.db import IntegrityError, transaction
 from django.test import TestCase
 from django.urls import reverse
 
-from .models import ReglaDocumentoInet
-from .reglas_documento import buscar_regla
+from ..models import ReglaDocumentoInet
+from ..reglas_documento import buscar_regla
 
 
 class ReglasDocumentoTests(TestCase):

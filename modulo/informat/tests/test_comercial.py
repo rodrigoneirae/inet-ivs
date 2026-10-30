@@ -2,8 +2,8 @@ from unittest.mock import patch
 
 from django.test import SimpleTestCase, override_settings
 
-from .comercial import crear_documento, insertar_documento
-from .services import ServicioInformatError, ServicioInformatTimeout
+from ..comercial import crear_documento, insertar_documento
+from ..services import ServicioInformatError, ServicioInformatTimeout
 
 
 @override_settings(URLTOKEN='https://ssi.example', EMPRUT='empresa', CONID='conexion',

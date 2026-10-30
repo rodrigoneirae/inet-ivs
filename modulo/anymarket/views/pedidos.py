@@ -20,9 +20,9 @@ from openpyxl import Workbook
 from openpyxl.cell import WriteOnlyCell
 from openpyxl.cell.cell import ILLEGAL_CHARACTERS_RE
 
-from .models import Pedido
-from .forms import FiltrosPedidosForm
-from .tasks import sincronizar_pedidos
+from ..models import Pedido
+from ..forms import FiltrosPedidosForm
+from ..tasks import sincronizar_pedidos
 
 logger = logging.getLogger(__name__)
 

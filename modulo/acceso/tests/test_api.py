@@ -4,7 +4,7 @@ import json
 from django.contrib.auth.models import AnonymousUser
 from django.test import Client, RequestFactory, SimpleTestCase, override_settings
 
-from . import api
+from ..views import api
 
 
 @override_settings(CACHES={
@@ -41,7 +41,7 @@ class ApiTests(SimpleTestCase):
             request.user.has_perm.return_value = False
             self.assertEqual(view(request).status_code, 403)
 
-    @patch('modulo.acceso.api.solicitar_sincronizacion')
+    @patch('modulo.acceso.views.api.solicitar_sincronizacion')
     def test_sync_returns_task_status(self, solicitar: Mock) -> None:
         request = self.factory.post('/api/v1/pedidos/sincronizar/')
         request.user = Mock(is_authenticated=True)
@@ -54,7 +54,7 @@ class ApiTests(SimpleTestCase):
         response = Client(enforce_csrf_checks=True).post('/api/v1/pedidos/sincronizar/')
         self.assertEqual(response.status_code, 403)
 
-    @patch('modulo.anymarket.views.sincronizar_pedidos.apply_async')
+    @patch('modulo.anymarket.views.pedidos.sincronizar_pedidos.apply_async')
     def test_web_and_api_share_sync_rate_limit(self, enqueue: Mock) -> None:
         from django.core.cache import cache
         from modulo.anymarket.views import solicitar_sincronizacion
@@ -67,7 +67,7 @@ class ApiTests(SimpleTestCase):
         self.assertEqual(api.sincronizar(request).status_code, 429)
         enqueue.assert_called_once_with(retry=False)
 
-    @patch('modulo.acceso.api.exportar_pedidos')
+    @patch('modulo.acceso.views.api.exportar_pedidos')
     def test_export_passes_filters_to_existing_view(self, exportar: Mock) -> None:
         from django.http import HttpResponse
         request = self.factory.get('/api/v1/pedidos/exportar/', {'canal': 'shopify'})
@@ -83,9 +83,9 @@ class ApiTests(SimpleTestCase):
         request.user.has_perm.return_value = True
         self.assertEqual(api.pedidos(request).status_code, 400)
 
-    @patch('modulo.acceso.api.Sincronizacion.objects')
-    @patch('modulo.acceso.api.Pedido.objects')
-    @patch('modulo.acceso.api.consulta_pedidos')
+    @patch('modulo.acceso.views.api.Sincronizacion.objects')
+    @patch('modulo.acceso.views.api.Pedido.objects')
+    @patch('modulo.acceso.views.api.consulta_pedidos')
     def test_filters_and_options(self, consulta: Mock, manager: Mock, sincronizaciones: Mock) -> None:
         request = self.factory.get('/api/v1/pedidos/', {
             'desde': '2026-10-01', 'hasta': '2026-10-20', 'canal': 'shopify',
@@ -107,7 +107,7 @@ class ApiTests(SimpleTestCase):
         self.assertEqual(request.GET['orden'], 'cliente')
         self.assertEqual(json.loads(response.content)['canales'], ['shopify'])
 
-    @patch('modulo.acceso.api.authenticate')
+    @patch('modulo.acceso.views.api.authenticate')
     def test_invalid_login_is_rejected(self, authenticate: Mock) -> None:
         request = self.factory.post('/api/v1/ingresar/', {'username': 'usuario', 'password': 'clave'})
         authenticate.return_value = None

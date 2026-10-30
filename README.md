@@ -2,6 +2,10 @@
 
 Proyecto Django preparado para ASGI, Channels, Celery, Redis y PostgreSQL. Docker Compose ejecuta Django y Channels en `web`, las tareas en `worker`, el planificador en `beat`, PostgreSQL en `db` y Redis en `redis`.
 
+## Organización de aplicaciones
+
+Las aplicaciones Django se encuentran en `modulo/<aplicacion>/`. Los modelos se organizan en `models/`, con archivos descriptivos y exportaciones en `__init__.py` para que Django los descubra. Las vistas, rutas, servicios y pruebas se agrupan respectivamente en `views/`, `urls/`, `services/` y `tests/`; cada archivo se nombra según su responsabilidad. Las migraciones permanecen en `migrations/`. El enrutador principal incluye las rutas de cada aplicación y las URL públicas conservan sus direcciones.
+
 ## Desarrollo web con Django y Astro
 
 `frontend/` contiene la interfaz Astro estática que consulta la API de Django por el mismo origen. En el despliegue, Django entrega el HTML compilado en `/` y `/pedidos/` a través de sus rutas y middleware; la ruta de pedidos exige sesión y el permiso `anymarket.view_pedido`. Nginx sirve los recursos compilados `/_astro/` y reenvía las demás rutas a Django. Django Admin conserva sus propias plantillas en `/admin/`.

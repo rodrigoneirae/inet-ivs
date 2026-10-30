@@ -1,6 +1,6 @@
 from django.test import SimpleTestCase
 
-from .tipo_documento import tipo_documento_solicitado
+from ..tipo_documento import tipo_documento_solicitado
 
 
 class TipoDocumentoTests(SimpleTestCase):

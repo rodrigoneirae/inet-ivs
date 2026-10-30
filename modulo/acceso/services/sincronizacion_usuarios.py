@@ -6,7 +6,7 @@ from django.contrib.auth import get_user_model
 from django.contrib.auth.models import AbstractBaseUser
 from django.db import connections, transaction
 
-from .models import UsuarioOrigen
+from ..models import UsuarioOrigen
 
 logger = logging.getLogger(__name__)
 

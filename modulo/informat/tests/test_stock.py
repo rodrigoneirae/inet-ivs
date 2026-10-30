@@ -5,10 +5,10 @@ from urllib.error import URLError
 
 from django.test import Client, RequestFactory, SimpleTestCase, override_settings
 
-from .api import stock, token_manual
-from .catalogo import productos
-from .services import ServicioInformatError, ServicioInformatTimeout, _post_json, consultar_stock
-from .tokens import guardar_token_manual, obtener_token
+from ..views.stock import stock, token_manual
+from ..views.catalogo import productos
+from ..services import ServicioInformatError, ServicioInformatTimeout, _post_json, consultar_stock
+from ..tokens import guardar_token_manual, obtener_token
 
 
 class FakeRedis:
@@ -40,7 +40,7 @@ class ConsultaStockTests(SimpleTestCase):
         patcher.start()
         self.addCleanup(patcher.stop)
 
-    @patch('modulo.informat.services._post_json')
+    @patch('modulo.informat.services.stock._post_json')
     def test_autenticacion_y_filtros(self, post: Mock) -> None:
         post.side_effect = [
             {'SalidaAut': {'CodigoError': 200, 'Token': 'temporal'}},
@@ -54,14 +54,14 @@ class ConsultaStockTests(SimpleTestCase):
         self.assertEqual(payload['ProcesoFiltros']['Filtros'][1]['Dato'], '00123')
         self.assertEqual(payload['ProcesoFiltros']['Filtros'][0]['Dato'], '')
 
-    @patch('modulo.informat.services._post_json')
+    @patch('modulo.informat.services.stock._post_json')
     def test_error_negocio_no_devuelve_productos(self, post: Mock) -> None:
         post.side_effect = [{'SalidaAut': {'CodigoError': 200, 'Token': 'temporal'}},
                             {'RespuestaProceso': {'Tipo': 1}, 'Productos': []}]
         with self.assertRaises(ServicioInformatError):
             consultar_stock('123', '1')
 
-    @patch('modulo.informat.services._post_json')
+    @patch('modulo.informat.services.stock._post_json')
     def test_listado_sin_codigo_omite_filtro_producto(self, post: Mock) -> None:
         post.side_effect = [{'SalidaAut': {'CodigoError': 200, 'Token': 'temporal'}},
                             {'RespuestaProceso': {'Tipo': 0}, 'Productos': []}]
@@ -69,7 +69,7 @@ class ConsultaStockTests(SimpleTestCase):
         filtros = post.call_args_list[1].args[1]['ProcesoFiltros']['Filtros']
         self.assertEqual(filtros, [{'Opcion': 0, 'Nombre': 'BODEGA', 'Dato': '1'}])
 
-    @patch('modulo.informat.api.consultar_stock')
+    @patch('modulo.informat.views.stock.consultar_stock')
     def test_permisos_filtros_y_datos_permitidos(self, consulta: Mock) -> None:
         request = RequestFactory().get('/api/v1/informat/stock/', {'producto': '00123', 'bodega': '1'})
         request.user = Mock(is_authenticated=False)
@@ -90,7 +90,7 @@ class ConsultaStockTests(SimpleTestCase):
         self.assertNotIn('PRECIOS', datos)
         consulta.assert_called_once_with('00123', '1')
 
-    @patch('modulo.informat.api.consultar_stock')
+    @patch('modulo.informat.views.stock.consultar_stock')
     def test_filtros_invalidos_no_consultan(self, consulta: Mock) -> None:
         request = RequestFactory().get('/api/v1/informat/stock/', {'producto': '0', 'bodega': 'abc'})
         request.user = Mock(is_authenticated=True)
@@ -98,7 +98,7 @@ class ConsultaStockTests(SimpleTestCase):
         self.assertEqual(stock(request).status_code, 400)
         consulta.assert_not_called()
 
-    @patch('modulo.informat.api.consultar_stock')
+    @patch('modulo.informat.views.stock.consultar_stock')
     def test_producto_obligatorio(self, consulta: Mock) -> None:
         request = RequestFactory().get('/api/v1/informat/stock/', {'bodega': '1'})
         request.user = Mock(is_authenticated=True)
@@ -112,7 +112,7 @@ class ConsultaStockTests(SimpleTestCase):
             _post_json('http://inet.example/rest/wsproductosventas', {})
 
     @override_settings(INFORMAT_TIMEOUT=30)
-    @patch('modulo.informat.services.build_opener')
+    @patch('modulo.informat.services.stock.build_opener')
     def test_timeout_directo_y_envuelto(self, opener: Mock) -> None:
         for error in (TimeoutError(), URLError(TimeoutError())):
             with self.subTest(error=type(error).__name__):
@@ -121,7 +121,7 @@ class ConsultaStockTests(SimpleTestCase):
                     _post_json('https://inet.example/rest/wsproductosventas', {})
                 self.assertEqual(opener.return_value.open.call_args.kwargs['timeout'], 30)
 
-    @patch('modulo.informat.services._post_json')
+    @patch('modulo.informat.services.stock._post_json')
     def test_timeout_identifica_etapa(self, post: Mock) -> None:
         post.side_effect = ServicioInformatTimeout('timeout')
         with self.assertRaisesMessage(ServicioInformatTimeout, 'autenticación'):
@@ -133,7 +133,7 @@ class ConsultaStockTests(SimpleTestCase):
         with self.assertRaisesMessage(ServicioInformatTimeout, 'productos'):
             consultar_stock('123', '')
 
-    @patch('modulo.informat.api.consultar_stock')
+    @patch('modulo.informat.views.stock.consultar_stock')
     def test_timeout_devuelve_504(self, consulta: Mock) -> None:
         request = RequestFactory().get('/api/v1/informat/stock/', {'producto': '123'})
         request.user = Mock(is_authenticated=True)
@@ -169,7 +169,7 @@ class ConsultaStockTests(SimpleTestCase):
         self.assertEqual(obtener_token(renovar, rechazado='antiguo'), 'manual-nuevo')
         renovar.assert_not_called()
 
-    @patch('modulo.informat.services._post_json')
+    @patch('modulo.informat.services.stock._post_json')
     def test_token_rechazado_renueva_una_vez(self, post: Mock) -> None:
         guardar_token_manual('anterior', 300)
         post.side_effect = [
@@ -181,7 +181,7 @@ class ConsultaStockTests(SimpleTestCase):
         self.assertEqual(post.call_count, 3)
         self.assertEqual(post.call_args_list[2].args[1]['ProcesoFiltros']['Token'], 'nuevo')
 
-    @patch('modulo.informat.services._post_json')
+    @patch('modulo.informat.services.stock._post_json')
     def test_error_negocio_no_renueva_token(self, post: Mock) -> None:
         guardar_token_manual('manual', 300)
         post.return_value = {'RespuestaProceso': {'Tipo': 1, 'Errores': [{'ErrorDescripcion': 'Producto inválido'}]}}
@@ -189,8 +189,8 @@ class ConsultaStockTests(SimpleTestCase):
             consultar_stock('123', '1')
         self.assertEqual(post.call_count, 1)
 
-    @patch('modulo.informat.api.guardar_token_manual')
-    @patch('modulo.informat.api.caches')
+    @patch('modulo.informat.views.stock.guardar_token_manual')
+    @patch('modulo.informat.views.stock.caches')
     def test_token_manual_permisos_y_validacion(self, caches_mock: Mock, guardar: Mock) -> None:
         caches_mock.__getitem__ = Mock(return_value=Mock(add=Mock(return_value=True)))
         request = RequestFactory().post('/api/v1/informat/token/', {'token': 'manual', 'minutos_vigencia': '30'})
@@ -215,7 +215,7 @@ class ConsultaStockTests(SimpleTestCase):
 
 
 class CatalogoTests(SimpleTestCase):
-    @patch('modulo.informat.catalogo.ProductoVentaInet')
+    @patch('modulo.informat.views.catalogo.ProductoVentaInet')
     def test_autenticacion_permiso_y_validacion(self, modelo: Mock) -> None:
         request = RequestFactory().get('/api/v1/informat/productos/')
         request.user = Mock(is_authenticated=False)
@@ -231,7 +231,7 @@ class CatalogoTests(SimpleTestCase):
 
     @override_settings(DATABASES={'default': {'ENGINE': 'django.db.backends.dummy'},
                                  'sqlserver': {'ENGINE': 'django.db.backends.dummy'}})
-    @patch('modulo.informat.catalogo.ProductoVentaInet')
+    @patch('modulo.informat.views.catalogo.ProductoVentaInet')
     def test_paginacion_y_busqueda(self, modelo: Mock) -> None:
         request = RequestFactory().get('/api/v1/informat/productos/',
                                        {'busqueda': '250', 'pagina': '2', 'tamano': '1'})
