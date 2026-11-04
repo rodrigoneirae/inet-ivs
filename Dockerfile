@@ -15,7 +15,7 @@ WORKDIR /app
 
 COPY requirements.txt .
 RUN apt-get update \
-    && apt-get install --no-install-recommends -y libodbc2 \
+    && apt-get install --no-install-recommends -y libodbc2 libltdl7 libkrb5-3 libgssapi-krb5-2 \
     && rm -rf /var/lib/apt/lists/* \
     && pip install --no-cache-dir -r requirements.txt \
     && useradd --create-home --uid 10001 app \
