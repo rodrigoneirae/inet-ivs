@@ -19,6 +19,9 @@ let applied = new URLSearchParams();
 let ordersRequest = 0;
 let searchTimer;
 let puedeCrearInet = false;
+let perfilesPagina = 1;
+let perfilesBusqueda = '';
+let perfilesRequest = 0;
 
 function readStorage(key) {
   try {
@@ -165,7 +168,7 @@ function initials(name) {
 }
 
 function setCurrentNav(current) {
-  for (const selector of ['#nav-home', '#nav-orders', '#nav-stock', '#nav-catalogo']) {
+  for (const selector of ['#nav-home', '#nav-orders', '#nav-stock', '#nav-catalogo', '#nav-users']) {
     const element = $(selector);
     if (!element) continue;
     if (selector === current) element.setAttribute('aria-current', 'page');
@@ -186,11 +189,21 @@ function displaySession(data) {
     $('#nav-orders').hidden = !data.puede_ver_pedidos;
     $('#nav-stock').hidden = !data.puede_ver_stock;
     $('#nav-catalogo').hidden = !data.puede_ver_catalogo_web;
+    $('#nav-users').hidden = !data.puede_configurar_usuarios;
     const hero = $('#hero-orders');
     if (hero) hero.hidden = !data.puede_ver_pedidos;
     $('#sync').hidden = !data.puede_sincronizar;
     const rutaActual = window.location.pathname || '/';
-    if (rutaActual.startsWith('/catalogo/') && data.puede_ver_catalogo_web) {
+    if (rutaActual === '/usuarios/' && data.puede_configurar_usuarios) {
+      $('#home').hidden = true;
+      $('#stock').hidden = true;
+      $('#orders').hidden = true;
+      $('#catalogo-web').hidden = true;
+      $('#user-profiles').hidden = false;
+      $('#page-title').textContent = 'Perfiles de usuario';
+      setCurrentNav('#nav-users');
+      loadUserProfiles(1, $('#perfiles-filtro').value.trim());
+    } else if (rutaActual.startsWith('/catalogo/') && data.puede_ver_catalogo_web) {
       $('#home').hidden = true;
       $('#stock').hidden = true;
       $('#orders').hidden = true;
@@ -478,6 +491,106 @@ $('#nav-home').addEventListener('click', () => { window.location.assign('/'); })
 $('#nav-orders').addEventListener('click', () => { window.location.assign('/pedidos/'); });
 $('#nav-stock').addEventListener('click', () => { window.location.assign('/stock/'); });
 $('#nav-catalogo').addEventListener('click', () => { window.location.assign('/catalogo/'); });
+$('#nav-users').addEventListener('click', () => { window.location.assign('/usuarios/'); });
+async function loadUserProfiles(pagina = 1, busqueda = '') {
+  const solicitud = ++perfilesRequest;
+  $('#perfiles-estado').textContent = 'Cargando usuarios…';
+  $('#perfiles-anterior').disabled = true;
+  $('#perfiles-siguiente').disabled = true;
+  try {
+    const query = new URLSearchParams({ pagina: String(pagina), busqueda });
+    const respuesta = await request(`/api/v1/acceso/perfiles/usuarios/?${query}`);
+    const datos = await respuesta.json();
+    if (solicitud !== perfilesRequest) return;
+    perfilesPagina = datos.pagina;
+    perfilesBusqueda = busqueda;
+    $('#perfiles-total').textContent = `${datos.total} usuarios`;
+    $('#perfiles-sin-configurar').hidden = datos.grupo_configurado;
+    const filas = $('#perfiles-usuarios');
+    filas.replaceChildren();
+    if (!datos.usuarios.length) {
+      const filaVacia = catalogoElemento('tr', '');
+      const celdaVacia = catalogoElemento('td', 'px-4 py-6 text-center text-ink-muted', 'No se encontraron usuarios.');
+      celdaVacia.colSpan = 4;
+      filaVacia.append(celdaVacia);
+      filas.append(filaVacia);
+    }
+    for (const usuario of datos.usuarios) {
+      const fila = catalogoElemento('tr', 'align-middle');
+      fila.append(catalogoElemento('th', 'px-4 py-3 font-medium text-ink', usuario.username));
+      fila.append(catalogoElemento('td', 'px-4 py-3 text-ink-muted', usuario.activo ? 'Activo' : 'Inactivo'));
+      const perfil = catalogoElemento('td', 'px-4 py-3');
+      if (usuario.superusuario) {
+        perfil.append(catalogoElemento('span', 'chip chip-neutral', 'Superusuario · acceso total'));
+      } else {
+        perfil.append(catalogoElemento('span', usuario.administrador ? 'chip bg-primary-soft text-primary-ink' : 'chip chip-neutral',
+          usuario.administrador ? 'Administrador' : 'Sin perfil'));
+      }
+      fila.append(perfil);
+      const accion = catalogoElemento('td', 'px-4 py-3 text-right');
+      if (!usuario.superusuario) {
+        const formulario = catalogoElemento('form', 'inline-flex items-center justify-end gap-3');
+        formulario.dataset.perfilUsuario = 'true';
+        const nombre = document.createElement('input');
+        nombre.type = 'hidden';
+        nombre.name = 'username';
+        nombre.value = usuario.username;
+        const label = catalogoElemento('label', 'inline-flex items-center gap-2 text-sm text-ink');
+        const checkbox = document.createElement('input');
+        checkbox.type = 'checkbox';
+        checkbox.name = 'administrador';
+        checkbox.checked = usuario.administrador;
+        checkbox.disabled = !datos.grupo_configurado;
+        checkbox.className = 'size-4 rounded accent-primary';
+        label.append(checkbox, document.createTextNode('Administrador'));
+        const guardar = catalogoElemento('button', 'btn btn-secondary btn-sm', 'Guardar');
+        guardar.type = 'submit';
+        guardar.disabled = !datos.grupo_configurado;
+        formulario.append(nombre, label, guardar);
+        accion.append(formulario);
+      }
+      fila.append(accion);
+      filas.append(fila);
+    }
+    $('#perfiles-estado').textContent = datos.usuarios.length
+      ? 'Solo los superusuarios pueden cambiar este perfil. Los cambios se aplican inmediatamente.'
+      : '';
+    $('#perfiles-pagina').textContent = `Página ${datos.pagina} de ${datos.paginas}`;
+    $('#perfiles-anterior').disabled = !datos.hay_anterior;
+    $('#perfiles-siguiente').disabled = !datos.hay_siguiente;
+  } catch (error) {
+    if (solicitud !== perfilesRequest) return;
+    $('#perfiles-estado').textContent = 'No se pudieron cargar los usuarios.';
+    toast(error.message, 'error');
+  }
+}
+
+$('#perfiles-busqueda').addEventListener('submit', event => {
+  event.preventDefault();
+  loadUserProfiles(1, $('#perfiles-filtro').value.trim());
+});
+$('#perfiles-usuarios').addEventListener('submit', async event => {
+  const formulario = event.target.closest('form[data-perfil-usuario]');
+  if (!formulario) return;
+  event.preventDefault();
+  const guardar = formulario.querySelector('button[type="submit"]');
+  guardar.disabled = true;
+  try {
+    const datos = new FormData(formulario);
+    const actualizado = await post('/api/v1/acceso/perfiles/usuario/', {
+      username: datos.get('username'),
+      administrador: datos.get('administrador') ? 'true' : '',
+    });
+    toast(`Perfil de ${actualizado.username} actualizado.`, 'success');
+    await loadUserProfiles(perfilesPagina, perfilesBusqueda);
+  } catch (error) {
+    toast(error.message, 'error');
+  } finally {
+    guardar.disabled = false;
+  }
+});
+$('#perfiles-anterior').addEventListener('click', () => loadUserProfiles(perfilesPagina - 1, perfilesBusqueda));
+$('#perfiles-siguiente').addEventListener('click', () => loadUserProfiles(perfilesPagina + 1, perfilesBusqueda));
 $('#token-informat-form').addEventListener('submit', async event => {
   event.preventDefault();
   const form = event.currentTarget;

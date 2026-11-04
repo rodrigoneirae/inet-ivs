@@ -1,5 +1,6 @@
 from django.conf import settings
 from django.contrib.auth.decorators import login_required, permission_required
+from django.core.exceptions import PermissionDenied
 from django.http import FileResponse, HttpRequest, HttpResponse
 from django.views.decorators.cache import never_cache
 from django.views.decorators.http import require_safe
@@ -29,4 +30,13 @@ def pedidos(request: HttpRequest) -> HttpResponse:
 @require_safe
 @never_cache
 def stock(request: HttpRequest) -> HttpResponse:
+    return inicio(request)
+
+
+@login_required
+@require_safe
+@never_cache
+def configurar_usuarios(request: HttpRequest) -> HttpResponse:
+    if not request.user.is_superuser:
+        raise PermissionDenied
     return inicio(request)

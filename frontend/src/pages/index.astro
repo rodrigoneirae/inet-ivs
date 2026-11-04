@@ -165,6 +165,10 @@ const apiBase = (import.meta.env.PUBLIC_API_BASE ?? '').replace(/\/$/, '');
               <svg class="nav-icon size-5 shrink-0" viewBox="0 0 24 24"><use href="#icon-pedidos"></use></svg>
               <span class="nav-label">Catálogo</span>
             </button>
+            <button id="nav-users" class="nav-link" type="button" hidden>
+              <svg class="nav-icon size-5 shrink-0" viewBox="0 0 24 24"><use href="#icon-candado"></use></svg>
+              <span class="nav-label">Perfiles de usuario</span>
+            </button>
           </nav>
 
           <div class="border-t border-line p-3">
@@ -323,6 +327,39 @@ const apiBase = (import.meta.env.PUBLIC_API_BASE ?? '').replace(/\/$/, '');
                 </div>
               </div>
               <div id="catalogo-web-detalle" class="mx-auto w-full max-w-[1600px]" hidden></div>
+            </section>
+
+            <section id="user-profiles" class="mx-auto w-full max-w-5xl px-4 py-6 md:px-8 md:py-10" hidden>
+              <div class="flex flex-wrap items-end justify-between gap-4">
+                <div>
+                  <p class="text-xs font-semibold uppercase tracking-wider text-primary">Seguridad</p>
+                  <h2 class="mt-1 text-2xl font-bold tracking-tight text-ink">Perfiles de usuario</h2>
+                  <p class="mt-1 text-sm text-ink-muted">Asigna el perfil Administrador a las cuentas autorizadas.</p>
+                </div>
+                <span id="perfiles-total" class="chip chip-neutral" aria-live="polite"></span>
+              </div>
+              <div id="perfiles-sin-configurar" class="mt-5 rounded-xl border border-warning/30 bg-warning-soft p-4 text-sm text-warning-ink" hidden>
+                El grupo Administrador aún no está configurado. Ejecuta <code>python manage.py configurar_perfiles</code>.
+              </div>
+              <form id="perfiles-busqueda" class="mt-5 flex max-w-xl gap-2" role="search">
+                <label class="sr-only" for="perfiles-filtro">Buscar usuario</label>
+                <input id="perfiles-filtro" name="busqueda" class="field" maxlength="100" placeholder="Buscar por nombre de usuario" />
+                <button class="btn btn-primary" type="submit">Buscar</button>
+              </form>
+              <p id="perfiles-estado" class="mt-4 text-sm text-ink-muted" role="status" aria-live="polite"></p>
+              <div class="mt-3 overflow-x-auto rounded-xl border border-line bg-surface">
+                <table class="w-full min-w-[40rem] text-left text-sm">
+                  <thead class="bg-surface-muted text-xs uppercase tracking-wide text-ink-muted">
+                    <tr><th scope="col" class="px-4 py-3">Usuario</th><th scope="col" class="px-4 py-3">Estado</th><th scope="col" class="px-4 py-3">Perfil</th><th scope="col" class="px-4 py-3 text-right">Acción</th></tr>
+                  </thead>
+                  <tbody id="perfiles-usuarios" class="divide-y divide-line"></tbody>
+                </table>
+              </div>
+              <nav class="mt-5 flex items-center justify-center gap-4" aria-label="Paginación de usuarios">
+                <button id="perfiles-anterior" class="btn btn-secondary" type="button">Anterior</button>
+                <span id="perfiles-pagina" class="text-sm text-ink-muted"></span>
+                <button id="perfiles-siguiente" class="btn btn-secondary" type="button">Siguiente</button>
+              </nav>
             </section>
 
             <section id="orders" class="w-full px-4 py-6 md:px-8 md:py-10" hidden>
