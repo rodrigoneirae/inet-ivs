@@ -4,10 +4,13 @@ from tempfile import TemporaryDirectory
 from django.test import SimpleTestCase
 from PIL import Image
 
-from modulo.catalogo.services.sincronizacion import PATRON_IMAGEN, _guardar_derivada
+from modulo.catalogo.services.sincronizacion import PATRON_IMAGEN, _guardar_derivada, normalizar_texto
 
 
 class ImportacionImagenTests(SimpleTestCase):
+    def test_normaliza_espacios_de_relleno_del_sku(self) -> None:
+        self.assertEqual(normalizar_texto('16060170    '), '16060170')
+
     def test_patron_separa_sku_y_numero_final(self) -> None:
         coincidencia = PATRON_IMAGEN.fullmatch('SKU_CON_GUION_12.PNG')
         self.assertIsNotNone(coincidencia)

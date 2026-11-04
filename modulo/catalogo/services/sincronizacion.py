@@ -17,6 +17,10 @@ PATRON_IMAGEN = re.compile(r'^(?P<sku>.+)_(?P<numero>[1-9][0-9]*)\.(?P<extension
 TAMANO_LOTE = 500
 
 
+def normalizar_texto(valor: str | None) -> str:
+    return (valor or '').strip()
+
+
 class ErrorSincronizacionCatalogo(Exception):
     """Error recuperable al leer una de las fuentes del catálogo."""
 
@@ -45,16 +49,29 @@ def sincronizar_productos() -> int:
             'codigo', 'descripcion_corta', 'descripcion', 'codigo_existencia', 'codigo_barra', 'estado',
         ).iterator(chunk_size=TAMANO_LOTE))
         ahora = timezone.now()
-        productos = [Producto(
-            sku=fila['codigo'],
-            descripcion_corta=fila['descripcion_corta'] or '',
-            descripcion=fila['descripcion'] or '',
-            codigo_existencia=fila['codigo_existencia'] or '',
-            codigo_barra=fila['codigo_barra'] or '',
-            estado=fila['estado'],
-            sincronizado_en=ahora,
-        ) for fila in origen]
+        productos: list[Producto] = []
+        reemplazos_sku: list[tuple[str, str]] = []
+        for fila in origen:
+            sku_original = fila['codigo'] or ''
+            sku = normalizar_texto(sku_original)
+            if not sku:
+                continue
+            if sku != sku_original:
+                reemplazos_sku.append((sku_original, sku))
+            productos.append(Producto(
+                sku=sku,
+                descripcion_corta=normalizar_texto(fila['descripcion_corta']),
+                descripcion=normalizar_texto(fila['descripcion']),
+                codigo_existencia=normalizar_texto(fila['codigo_existencia']),
+                codigo_barra=normalizar_texto(fila['codigo_barra']),
+                estado=fila['estado'],
+                sincronizado_en=ahora,
+            ))
         with transaction.atomic():
+            for sku_original, sku in reemplazos_sku:
+                if not Producto.objects.filter(sku=sku).exists():
+                    # Conserva el UUID y las relaciones al limpiar CHAR con espacios de relleno.
+                    Producto.objects.filter(sku=sku_original).update(sku=sku)
             for inicio in range(0, len(productos), TAMANO_LOTE):
                 Producto.objects.bulk_create(
                     productos[inicio:inicio + TAMANO_LOTE],
