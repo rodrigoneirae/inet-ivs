@@ -12,6 +12,9 @@ class Producto(models.Model):
     codigo_barra = models.CharField(max_length=20, blank=True)
     estado = models.SmallIntegerField(null=True, blank=True)
     sincronizado_en = models.DateTimeField()
+    detalle_ws = models.JSONField(default=dict, blank=True)
+    detalle_ws_actualizado_en = models.DateTimeField(null=True, blank=True)
+    detalle_ws_intento_en = models.DateTimeField(null=True, blank=True)
 
     class Meta:
         ordering = ['sku']

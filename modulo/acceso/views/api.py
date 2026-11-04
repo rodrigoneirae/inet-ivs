@@ -18,8 +18,9 @@ class LoginForm(forms.Form):
 @never_cache
 def sesion(request: HttpRequest) -> JsonResponse:
     return JsonResponse({'csrf': get_token(request), 'usuario': request.user.get_username() if request.user.is_authenticated else None,
-                         'puede_ver_stock': request.user.has_perm('informat.consultar_stock'),
-                         'puede_ver_catalogo': request.user.has_perm('informat.consultar_productos_inet'),
+                          'puede_ver_stock': request.user.has_perm('informat.consultar_stock'),
+                          'puede_ver_catalogo': request.user.has_perm('informat.consultar_productos_inet'),
+                          'puede_ver_catalogo_web': request.user.has_perm('catalogo.ver_catalogo'),
                          'puede_administrar_token': request.user.has_perm('informat.administrar_token'),
                          'puede_ver_pedidos': request.user.has_perm('anymarket.view_pedido'),
                          'puede_sincronizar': request.user.has_perm('anymarket.change_pedido')})
@@ -50,8 +51,9 @@ def ingresar(request: HttpRequest) -> JsonResponse:
         return JsonResponse({'error': 'Credenciales inválidas.'}, status=401)
     login(request, user)
     return JsonResponse({'csrf': get_token(request), 'usuario': user.get_username(),
-                         'puede_ver_stock': user.has_perm('informat.consultar_stock'),
-                         'puede_ver_catalogo': user.has_perm('informat.consultar_productos_inet'),
+                          'puede_ver_stock': user.has_perm('informat.consultar_stock'),
+                          'puede_ver_catalogo': user.has_perm('informat.consultar_productos_inet'),
+                          'puede_ver_catalogo_web': user.has_perm('catalogo.ver_catalogo'),
                          'puede_administrar_token': user.has_perm('informat.administrar_token'),
                          'puede_ver_pedidos': user.has_perm('anymarket.view_pedido'),
                          'puede_sincronizar': user.has_perm('anymarket.change_pedido')})

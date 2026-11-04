@@ -90,14 +90,23 @@ def sincronizar_productos() -> int:
         raise ErrorSincronizacionCatalogo('No se pudo sincronizar el maestro de I-NET.') from exc
 
 
-def _guardar_derivada(origen: Path, destino: Path, lado: int) -> None:
+def _guardar_derivada(origen: Path, destino: Path, lado: int, calidad: int = 92) -> None:
     destino.parent.mkdir(parents=True, exist_ok=True)
     temporal = destino.with_suffix('.tmp.jpg')
     with Image.open(origen) as imagen:
         imagen = ImageOps.exif_transpose(imagen).convert('RGB')
         imagen = ImageOps.pad(imagen, (lado, lado), method=Image.Resampling.LANCZOS, color='white')
-        imagen.save(temporal, format='JPEG', quality=92, optimize=True)
+        imagen.save(temporal, format='JPEG', quality=calidad, optimize=True, progressive=True)
     temporal.replace(destino)
+
+
+def imagen_disponible_local(raiz: Path, imagen: ImagenProducto) -> bool:
+    raiz_resuelta = raiz.resolve()
+    for campo in ('original', 'resolucion_400', 'resolucion_1500', 'resolucion_800'):
+        archivo = (raiz_resuelta / getattr(imagen, campo)).resolve()
+        if raiz_resuelta not in archivo.parents or not archivo.is_file():
+            return False
+    return True
 
 
 def sincronizar_imagenes() -> int:
@@ -121,7 +130,8 @@ def sincronizar_imagenes() -> int:
                 contenido = archivo.read_bytes()
                 contenido_hash = hashlib.sha256(contenido).hexdigest()
                 existente = ImagenProducto.objects.filter(producto=producto, numero=int(datos['numero'])).first()
-                if existente and existente.sha256 == contenido_hash:
+                if (existente and existente.sha256 == contenido_hash
+                        and imagen_disponible_local(raiz_destino, existente)):
                     continue
                 carpeta = raiz_destino / hashlib.sha256(datos['sku'].encode('utf-8')).hexdigest()
                 original = carpeta / archivo.name
@@ -131,14 +141,17 @@ def sincronizar_imagenes() -> int:
                 temporal_original.replace(original)
                 variante_1500 = carpeta / f'{archivo.stem}_1500.jpg'
                 variante_800 = carpeta / f'{archivo.stem}_800.jpg'
+                miniatura_400 = carpeta / f'{archivo.stem}_400.jpg'
                 _guardar_derivada(original, variante_1500, 1500)
                 _guardar_derivada(original, variante_800, 800)
+                _guardar_derivada(original, miniatura_400, 400, calidad=82)
                 ImagenProducto.objects.update_or_create(
                     producto=producto,
                     numero=int(datos['numero']),
                     defaults={
                         'nombre_origen': archivo.name,
                         'original': str(original.relative_to(raiz_destino)),
+                        'resolucion_400': str(miniatura_400.relative_to(raiz_destino)),
                         'resolucion_1500': str(variante_1500.relative_to(raiz_destino)),
                         'resolucion_800': str(variante_800.relative_to(raiz_destino)),
                         'sha256': contenido_hash,

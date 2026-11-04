@@ -165,7 +165,7 @@ function initials(name) {
 }
 
 function setCurrentNav(current) {
-  for (const selector of ['#nav-home', '#nav-orders', '#nav-stock']) {
+  for (const selector of ['#nav-home', '#nav-orders', '#nav-stock', '#nav-catalogo']) {
     const element = $(selector);
     if (!element) continue;
     if (selector === current) element.setAttribute('aria-current', 'page');
@@ -182,13 +182,26 @@ function displaySession(data) {
     $('#username').textContent = data.usuario;
     const avatar = $('#user-initials');
     if (avatar) avatar.textContent = initials(data.usuario);
-    $('#greeting').textContent = `Hola, ${data.usuario}`;
+  $('#greeting').textContent = `Hola, ${data.usuario}`;
     $('#nav-orders').hidden = !data.puede_ver_pedidos;
     $('#nav-stock').hidden = !data.puede_ver_stock;
+    $('#nav-catalogo').hidden = !data.puede_ver_catalogo_web;
     const hero = $('#hero-orders');
     if (hero) hero.hidden = !data.puede_ver_pedidos;
     $('#sync').hidden = !data.puede_sincronizar;
-    if (window.location.pathname === '/stock/' && data.puede_ver_stock) {
+    const rutaActual = window.location.pathname || '/';
+    if (rutaActual.startsWith('/catalogo/') && data.puede_ver_catalogo_web) {
+      $('#home').hidden = true;
+      $('#stock').hidden = true;
+      $('#orders').hidden = true;
+      $('#catalogo-web').hidden = false;
+      $('#page-title').textContent = 'Catálogo';
+      setCurrentNav('#nav-catalogo');
+      renderCatalogoWebRoute();
+    } else if (rutaActual.startsWith('/catalogo/') && !data.puede_ver_catalogo_web) {
+      toast('No tienes permiso para consultar el catálogo.', 'error');
+      setCurrentNav('#nav-home');
+    } else if (rutaActual === '/stock/' && data.puede_ver_stock) {
       $('#home').hidden = true;
       $('#stock').hidden = false;
       $('#page-title').textContent = 'Stock Informat';
@@ -196,7 +209,7 @@ function displaySession(data) {
       $('#catalogo').hidden = !data.puede_ver_catalogo;
       $('#token-informat').hidden = !data.puede_administrar_token;
       if (data.puede_ver_catalogo) loadCatalogo(1);
-    } else if (window.location.pathname === '/pedidos/' && data.puede_ver_pedidos) {
+    } else if (rutaActual === '/pedidos/' && data.puede_ver_pedidos) {
       $('#home').hidden = true;
       $('#orders').hidden = false;
       $('#page-title').textContent = 'Pedidos AnyMarket';
@@ -464,6 +477,7 @@ $('#logout').addEventListener('click', async () => {
 $('#nav-home').addEventListener('click', () => { window.location.assign('/'); });
 $('#nav-orders').addEventListener('click', () => { window.location.assign('/pedidos/'); });
 $('#nav-stock').addEventListener('click', () => { window.location.assign('/stock/'); });
+$('#nav-catalogo').addEventListener('click', () => { window.location.assign('/catalogo/'); });
 $('#token-informat-form').addEventListener('submit', async event => {
   event.preventDefault();
   const form = event.currentTarget;
@@ -520,6 +534,419 @@ async function loadCatalogo(pagina) {
 $('#catalogo-filtros').addEventListener('submit', event => { event.preventDefault(); loadCatalogo(1); });
 $('#catalogo-anterior').addEventListener('click', () => loadCatalogo(catalogoPagina - 1));
 $('#catalogo-siguiente').addEventListener('click', () => loadCatalogo(catalogoPagina + 1));
+
+let catalogoWebRequest = 0;
+let catalogoWebPagina = 1;
+let catalogoWebFacetas = [];
+let catalogoWebFacetasCargando;
+const catalogoWebClavesAtributo = ['ATTUNO', 'ATTDOS', 'ATTTRE', 'ATTCUA', 'ATTCIN'];
+
+function catalogoElemento(etiqueta, clases, texto) {
+  const elemento = document.createElement(etiqueta);
+  if (clases) elemento.className = clases;
+  if (texto !== undefined) elemento.textContent = String(texto);
+  return elemento;
+}
+
+function catalogoImagen(src, alt, clases = 'aspect-square w-full rounded-lg bg-white object-contain') {
+  if (!src) return catalogoElemento('div', `${clases} grid place-items-center text-sm text-slate-500`, 'Imagen no disponible');
+  const imagen = catalogoElemento('img', clases);
+  imagen.src = src;
+  imagen.alt = alt;
+  imagen.loading = 'lazy';
+  imagen.addEventListener('error', () => {
+    imagen.replaceWith(catalogoElemento('div', `${clases} grid place-items-center text-sm text-slate-500`, 'Imagen no disponible'));
+  }, { once: true });
+  return imagen;
+}
+
+function filtrosCatalogoSeleccionados() {
+  return Object.fromEntries(catalogoWebClavesAtributo.map(clave => [
+    clave,
+    [...document.querySelectorAll(`input[name="${clave}"]:checked`)].map(input => input.value),
+  ]));
+}
+
+function filtrosCatalogoDesdeUrl(params) {
+  return Object.fromEntries(catalogoWebClavesAtributo.map(clave => [clave, params.getAll(clave)]));
+}
+
+function actualizarContadorFiltrosCatalogo() {
+  const seleccionados = filtrosCatalogoSeleccionados();
+  const cantidad = Object.values(seleccionados).reduce((total, valores) => total + valores.length, 0);
+  const boton = $('#catalogo-web-filtros-toggle');
+  boton.textContent = cantidad ? `Filtros (${cantidad})` : 'Filtros';
+  boton.setAttribute('aria-label', cantidad ? `Filtros, ${cantidad} activos` : 'Abrir filtros por atributos');
+
+  const contenedor = $('#catalogo-web-filtros-activos');
+  contenedor.replaceChildren();
+  for (const [clave, valores] of Object.entries(seleccionados)) {
+    const nombreGrupo = catalogoWebFacetas.find(grupo => grupo.clave === clave)?.nombre || `Atributo ${clave}`;
+    for (const valor of valores) {
+      const chip = catalogoElemento('span', 'chip chip-neutral inline-flex items-center gap-1.5', `${nombreGrupo}: ${valor}`);
+      const quitar = catalogoElemento('button', 'ml-1 inline-grid h-5 w-5 place-items-center rounded-full text-ink-muted hover:bg-surface-muted hover:text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary', '×');
+      quitar.type = 'button';
+      quitar.setAttribute('aria-label', `Quitar filtro ${nombreGrupo}: ${valor}`);
+      quitar.addEventListener('click', () => {
+        const checkbox = [...document.querySelectorAll(`input[name="${clave}"]`)]
+          .find(input => input.value === valor);
+        if (checkbox) {
+          checkbox.checked = false;
+          aplicarFiltrosCatalogo();
+        }
+      });
+      chip.append(quitar);
+      contenedor.append(chip);
+    }
+  }
+}
+
+function aplicarFiltrosCatalogo() {
+  const busqueda = $('#catalogo-web-busqueda').value.trim();
+  const filtros = filtrosCatalogoSeleccionados();
+  const query = new URLSearchParams();
+  for (const [clave, valores] of Object.entries(filtros)) {
+    for (const valor of valores) query.append(clave, valor);
+  }
+  if (busqueda) query.set('busqueda', busqueda);
+  window.history.pushState({}, '', `/catalogo/${query.size ? `?${query}` : ''}`);
+  $('#catalogo-web-facetas-panel').hidden = true;
+  $('#catalogo-web-filtros-toggle').setAttribute('aria-expanded', 'false');
+  actualizarContadorFiltrosCatalogo();
+  loadCatalogoWebListado(1, busqueda, filtros);
+}
+
+function renderCatalogoWebRoute() {
+  const params = new URLSearchParams(window.location.search);
+  const rutaDetalle = window.location.pathname.match(/^\/catalogo\/producto\/([0-9a-f-]+)\/?$/i);
+  const publicId = params.get('producto') || (rutaDetalle ? rutaDetalle[1] : null);
+  if (publicId) loadCatalogoWebDetalle(publicId);
+  else {
+    const filtros = filtrosCatalogoDesdeUrl(params);
+    loadCatalogoWebListado(Number(params.get('pagina')) || 1, params.get('busqueda') || '', filtros);
+    cargarFacetasCatalogo();
+  }
+}
+
+async function cargarFacetasCatalogo() {
+  if (catalogoWebFacetasCargando) return catalogoWebFacetasCargando;
+  catalogoWebFacetasCargando = (async () => {
+    try {
+      const respuesta = await request('/api/v1/catalogo/atributos/');
+      catalogoWebFacetas = (await respuesta.json()).atributos || [];
+      const formulario = $('#catalogo-web-facetas');
+      formulario.replaceChildren();
+      for (const grupo of catalogoWebFacetas) {
+        const campo = catalogoElemento('fieldset', 'max-h-40 min-w-0 overflow-y-auto rounded-lg border border-line p-2');
+        const etiqueta = catalogoElemento('legend', 'px-1 text-sm font-semibold text-ink', grupo.nombre);
+        const seleccionados = new Set(new URLSearchParams(window.location.search).getAll(grupo.clave));
+        grupo.valores.forEach((valor, indice) => {
+          const id = `filtro-${grupo.clave}-${indice}`;
+          const fila = catalogoElemento('label', 'flex cursor-pointer items-center gap-2 rounded-md px-1.5 py-1 text-sm text-ink hover:bg-surface-muted');
+          const opcion = catalogoElemento('input', 'h-4 w-4 rounded border-line text-primary focus:ring-primary');
+          opcion.type = 'checkbox';
+          opcion.id = id;
+          opcion.name = grupo.clave;
+          opcion.value = valor.nombre;
+          opcion.checked = seleccionados.has(valor.nombre);
+          fila.htmlFor = id;
+          fila.append(opcion, document.createTextNode(`${valor.nombre} (${valor.cantidad})`));
+          campo.append(fila);
+        });
+        campo.prepend(etiqueta);
+        formulario.append(campo);
+      }
+      actualizarContadorFiltrosCatalogo();
+      $('#catalogo-web-facetas-estado').textContent = catalogoWebFacetas.length
+        ? 'Marca una o varias opciones por atributo.'
+        : 'Los filtros se poblarán a medida que se carguen los atributos de los productos.';
+    } catch (error) {
+      $('#catalogo-web-facetas-estado').textContent = 'No se pudieron cargar los filtros.';
+      toast(error.message, 'error');
+      catalogoWebFacetasCargando = null;
+    }
+  })();
+  return catalogoWebFacetasCargando;
+}
+
+async function loadCatalogoWebListado(pagina, busqueda, filtros = {}) {
+  const solicitud = ++catalogoWebRequest;
+  const listado = $('#catalogo-web-listado');
+  const detalle = $('#catalogo-web-detalle');
+  listado.hidden = false;
+  detalle.hidden = true;
+  $('#catalogo-web-busqueda').value = busqueda;
+  for (const clave of catalogoWebClavesAtributo) {
+    const valores = new Set(Array.isArray(filtros[clave]) ? filtros[clave] : (filtros[clave] ? [filtros[clave]] : []));
+    for (const opcion of document.querySelectorAll(`input[name="${clave}"]`)) opcion.checked = valores.has(opcion.value);
+  }
+  $('#catalogo-web-estado').textContent = 'Cargando productos…';
+  const query = new URLSearchParams({ pagina: String(pagina), tamano: '24', busqueda });
+  for (const clave of catalogoWebClavesAtributo) {
+    const valores = Array.isArray(filtros[clave]) ? filtros[clave] : (filtros[clave] ? [filtros[clave]] : []);
+    for (const valor of valores) query.append(clave, valor);
+  }
+  try {
+    const respuesta = await request(`/api/v1/catalogo/productos/?${query}`);
+    const datos = await respuesta.json();
+    if (solicitud !== catalogoWebRequest) return;
+    catalogoWebPagina = datos.pagina;
+    const tarjetas = $('#catalogo-web-tarjetas');
+    tarjetas.replaceChildren();
+    for (const producto of datos.productos) {
+      const tarjeta = catalogoElemento('article', 'card flex flex-col gap-3 p-3');
+      const enlace = catalogoElemento('a', 'block text-ink no-underline');
+      const detalleQuery = new URLSearchParams(window.location.search);
+      detalleQuery.set('producto', producto.public_id);
+      enlace.href = `/catalogo/?${detalleQuery}`;
+      enlace.dataset.catalogoProducto = producto.public_id;
+      enlace.append(catalogoImagen(producto.imagen, `Imagen de ${producto.sku}`));
+      const sku = catalogoElemento('p', 'mt-3 text-sm font-bold', producto.sku);
+      const descripcion = catalogoElemento('h3', 'mt-1 min-h-12 text-sm font-semibold', producto.descripcion || 'Sin descripción');
+      enlace.append(sku, descripcion);
+      const acciones = catalogoElemento('div', 'mt-auto flex items-center justify-center gap-3 pt-2');
+      const ver = catalogoElemento('a', 'btn btn-secondary inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm');
+      ver.href = enlace.href;
+      ver.dataset.catalogoProducto = producto.public_id;
+      ver.append(catalogoElemento('span', 'text-base', '◎'), document.createTextNode('Ver detalle'));
+      const descargas = catalogoElemento('details', 'relative');
+      const abrirDescargas = catalogoElemento('summary', 'inline-flex cursor-pointer list-none items-center gap-2 whitespace-nowrap rounded-full bg-success px-4 py-2 text-sm font-semibold text-white hover:bg-success/90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-success');
+      abrirDescargas.append(catalogoElemento('span', 'text-base', '↓'), document.createTextNode('Descargar'));
+      const opciones = catalogoElemento('div', 'absolute bottom-full right-0 z-10 mb-2 min-w-48 overflow-hidden rounded-xl border border-line bg-surface p-1 shadow-elevated');
+      for (const [etiqueta, tamano] of [['Alta (original)', 'alta'], ['1500 × 1500', '1500'], ['800 × 800', '800']]) {
+        const opcion = catalogoElemento('a', 'block rounded-lg px-3 py-2.5 text-sm font-semibold text-ink no-underline hover:bg-surface-muted', etiqueta);
+        opcion.href = `/api/v1/catalogo/productos/${encodeURIComponent(producto.public_id)}/descargar/${tamano}/`;
+        opciones.append(opcion);
+      }
+      descargas.append(abrirDescargas, opciones);
+      acciones.append(ver, descargas);
+      tarjeta.append(enlace, acciones);
+      tarjetas.append(tarjeta);
+    }
+    $('#catalogo-web-total').textContent = `${datos.total} productos`;
+    $('#catalogo-web-estado').textContent = datos.productos.length ? `${datos.productos.length} productos en esta página.` : 'No se encontraron productos.';
+    $('#catalogo-web-pagina').textContent = `Página ${datos.pagina} de ${datos.paginas}`;
+    $('#catalogo-web-anterior').disabled = !datos.hay_anterior;
+    $('#catalogo-web-siguiente').disabled = !datos.hay_siguiente;
+  } catch (error) {
+    if (solicitud !== catalogoWebRequest) return;
+    $('#catalogo-web-estado').textContent = 'No se pudo cargar el catálogo.';
+    toast(error.message, 'error');
+  }
+}
+
+async function loadCatalogoWebDetalle(publicId) {
+  const solicitud = ++catalogoWebRequest;
+  $('#catalogo-web-listado').hidden = true;
+  const contenedor = $('#catalogo-web-detalle');
+  contenedor.hidden = false;
+  contenedor.replaceChildren(catalogoElemento('p', 'text-sm text-ink-muted', 'Cargando producto…'));
+  try {
+    const respuesta = await request(`/api/v1/catalogo/productos/${encodeURIComponent(publicId)}/`);
+    const producto = await respuesta.json();
+    if (solicitud !== catalogoWebRequest) return;
+    contenedor.replaceChildren();
+    const volver = catalogoElemento('button', 'btn btn-secondary', '← Volver al catálogo');
+      volver.type = 'button';
+      volver.addEventListener('click', () => {
+      const query = new URLSearchParams(window.location.search);
+      query.delete('producto');
+      window.history.pushState({}, '', `/catalogo/${query.size ? `?${query}` : ''}`);
+      renderCatalogoWebRoute();
+    });
+    const detalleWs = producto.detalle_ws || {};
+    const venta = detalleWs.venta || {};
+    const existencias = detalleWs.existencias || {};
+    const metricas = detalleWs.metricas || {};
+    const titulo = catalogoElemento('h2', 'mt-5 text-2xl font-bold tracking-tight text-ink',
+      venta.descripcion_larga || producto.descripcion || 'Producto');
+    const sku = catalogoElemento('p', 'mt-1 text-sm font-semibold text-primary', producto.sku);
+    const columnas = catalogoElemento('div', 'mt-5 grid gap-6 xl:grid-cols-2');
+    const galeria = catalogoElemento('div', 'space-y-3');
+    const informacion = catalogoElemento('div', 'space-y-4');
+    const ficha = catalogoElemento('dl', 'card divide-y divide-line p-4');
+    const codigosBarra = (venta.codigos_barra || []).join(', ') || producto.codigo_barra || '—';
+    const estado = existencias.estado === null || existencias.estado === undefined
+      ? (producto.estado === null ? '—' : String(producto.estado)) : String(existencias.estado);
+    const filas = [
+      ['Estado I-NET', estado],
+      ['Descripción corta', venta.descripcion_corta || producto.descripcion_corta || '—'],
+      ['Especificaciones', venta.especificaciones || '—'],
+      ['Código(s) de barra', codigosBarra],
+      ['Código de existencia', producto.codigo_existencia || '—'],
+      ['Unidad', [existencias.unidad, existencias.unidad_abreviada].filter(Boolean).join(' · ') || '—'],
+      ['Clasificación', existencias.clasificacion || '—'],
+    ];
+    for (const [etiqueta, valor] of filas) {
+      const fila = catalogoElemento('div', 'flex items-start justify-between gap-4 py-3');
+      fila.append(catalogoElemento('dt', 'text-sm font-medium text-ink-muted', etiqueta));
+      fila.append(catalogoElemento('dd', 'm-0 text-right text-sm font-semibold text-ink', valor));
+      ficha.append(fila);
+    }
+    informacion.append(ficha);
+    if (detalleWs.atributos?.length) {
+      const tarjetaAtributos = catalogoElemento('section', 'card p-4');
+      tarjetaAtributos.append(catalogoElemento('h3', 'font-semibold text-ink', 'Atributos'));
+      const etiquetas = catalogoElemento('div', 'mt-3 flex flex-wrap gap-2');
+      for (const atributo of detalleWs.atributos) {
+        etiquetas.append(catalogoElemento('span', 'chip chip-neutral', atributo.nombre));
+      }
+      tarjetaAtributos.append(etiquetas);
+      informacion.append(tarjetaAtributos);
+    }
+    const unidades = metricas.unidad ? ` (${metricas.unidad})` : '';
+    const valoresMetricos = [
+      ['Alto', metricas.alto ? `${metricas.alto} cm` : ''],
+      ['Largo', metricas.largo ? `${metricas.largo} cm` : ''],
+      ['Ancho', metricas.ancho ? `${metricas.ancho} cm` : ''],
+      ['Peso', metricas.peso ? `${metricas.peso} kg` : ''],
+      ['Volumen', metricas.volumen || ''],
+      ['Factor de conversión', metricas.factor_conversion ? `${metricas.factor_conversion}${unidades}` : ''],
+    ].filter(([, valor]) => valor);
+    if (valoresMetricos.length) {
+      const tarjetaMetricas = catalogoElemento('section', 'card p-4');
+      tarjetaMetricas.append(catalogoElemento('h3', 'font-semibold text-ink', 'Dimensiones y peso'));
+      const listaMetricas = catalogoElemento('dl', 'mt-2 divide-y divide-line');
+      for (const [etiqueta, valor] of valoresMetricos) {
+        const fila = catalogoElemento('div', 'flex items-center justify-between gap-4 py-2');
+        fila.append(catalogoElemento('dt', 'text-sm text-ink-muted', etiqueta));
+        fila.append(catalogoElemento('dd', 'm-0 text-sm font-semibold text-ink', valor));
+        listaMetricas.append(fila);
+      }
+      tarjetaMetricas.append(listaMetricas);
+      informacion.append(tarjetaMetricas);
+    }
+    const descargasProducto = catalogoElemento('section', 'card p-4');
+    descargasProducto.append(catalogoElemento('h3', 'font-semibold text-ink', 'Descargar todas las imágenes'));
+    descargasProducto.append(catalogoElemento('p', 'mt-1 text-sm text-ink-muted',
+      'Descarga un ZIP con todas las fotos del producto en la resolución elegida.'));
+    const opcionesDescargaProducto = catalogoElemento('div', 'mt-3 flex flex-wrap gap-2');
+    for (const [texto, tamano] of [['Alta calidad', 'alta'], ['1500 × 1500', '1500'], ['800 × 800', '800']]) {
+      const enlace = catalogoElemento('a', 'btn btn-primary btn-sm', `↓ ${texto}`);
+      enlace.href = `/api/v1/catalogo/productos/${encodeURIComponent(producto.public_id)}/descargar/${tamano}/`;
+      opcionesDescargaProducto.append(enlace);
+    }
+    informacion.append(descargasProducto);
+    if (producto.detalle_ws_actualizado_en) {
+      const fechaActualizacion = new Date(producto.detalle_ws_actualizado_en);
+      informacion.append(catalogoElemento('p', 'text-xs text-ink-subtle',
+        `Información de I-NET actualizada: ${fechaActualizacion.toLocaleString('es-CL')}`));
+    } else if (!Object.keys(detalleWs).length) {
+      informacion.append(catalogoElemento('p', 'text-sm text-ink-muted',
+        'El detalle ampliado de I-NET no está disponible por ahora; se muestran los datos locales.'));
+    }
+    if (producto.imagenes.length) {
+      let indiceActivo = Math.max(0, producto.imagenes.findIndex(imagen => imagen.portada));
+      const imagenPrincipal = catalogoImagen(
+        producto.imagenes[indiceActivo].preview,
+        `${producto.sku}, imagen ${indiceActivo + 1}`,
+        'h-72 w-full rounded-lg bg-white object-contain sm:h-80 xl:h-[28rem]',
+      );
+      const marco = catalogoElemento('div', 'card relative m-0 overflow-hidden p-3');
+      marco.append(imagenPrincipal);
+      const anterior = catalogoElemento('button', 'btn btn-secondary absolute left-5 top-1/2 -translate-y-1/2 rounded-full', '←');
+      anterior.type = 'button';
+      anterior.setAttribute('aria-label', 'Imagen anterior');
+      const siguiente = catalogoElemento('button', 'btn btn-secondary absolute right-5 top-1/2 -translate-y-1/2 rounded-full', '→');
+      siguiente.type = 'button';
+      siguiente.setAttribute('aria-label', 'Imagen siguiente');
+      marco.append(anterior, siguiente);
+      const miniaturas = catalogoElemento('div', 'flex gap-2 overflow-x-auto pb-1');
+      const descargas = catalogoElemento('div', 'flex flex-wrap items-center gap-2');
+      descargas.append(catalogoElemento('span', 'mr-1 w-full text-sm font-semibold text-ink-muted', 'Descargar imagen activa:'));
+      const enlacesDescarga = [
+        ['Alta calidad', 'original'],
+        ['1500 × 1500', 'resolucion_1500'],
+        ['800 × 800', 'resolucion_800'],
+      ].map(([texto, campo]) => {
+        const enlace = catalogoElemento('a', 'btn btn-primary btn-sm', texto);
+        enlace.href = producto.imagenes[indiceActivo][campo];
+        descargas.append(enlace);
+        return { enlace, campo };
+      });
+      const leyenda = catalogoElemento('p', 'text-xs text-ink-muted');
+      const botonesMiniatura = producto.imagenes.map((imagen, indice) => {
+        const boton = catalogoElemento('button', 'shrink-0 rounded-lg border-2 border-transparent p-1 focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary');
+        boton.type = 'button';
+        boton.setAttribute('aria-label', `Mostrar imagen ${indice + 1} de ${producto.imagenes.length}`);
+        boton.append(catalogoImagen(imagen.miniatura, `${producto.sku}, miniatura ${indice + 1}`, 'h-20 w-20 rounded-md bg-white object-contain'));
+        boton.addEventListener('click', () => actualizarImagenActiva(indice));
+        miniaturas.append(boton);
+        return boton;
+      });
+      function actualizarImagenActiva(indice) {
+        indiceActivo = (indice + producto.imagenes.length) % producto.imagenes.length;
+        const imagen = producto.imagenes[indiceActivo];
+        imagenPrincipal.src = imagen.preview;
+        imagenPrincipal.alt = `${producto.sku}, imagen ${indiceActivo + 1}`;
+        leyenda.textContent = `${imagen.nombre}${imagen.portada ? ' · Portada' : ''} · ${indiceActivo + 1} de ${producto.imagenes.length}`;
+        for (const { enlace, campo } of enlacesDescarga) enlace.href = imagen[campo];
+        botonesMiniatura.forEach((boton, posicion) => {
+          boton.classList.toggle('border-primary', posicion === indiceActivo);
+          boton.setAttribute('aria-pressed', String(posicion === indiceActivo));
+        });
+      }
+      anterior.addEventListener('click', () => actualizarImagenActiva(indiceActivo - 1));
+      siguiente.addEventListener('click', () => actualizarImagenActiva(indiceActivo + 1));
+      actualizarImagenActiva(indiceActivo);
+      galeria.append(marco, leyenda, miniaturas, descargas);
+    } else {
+      galeria.append(catalogoElemento('p', 'text-sm text-ink-muted', 'No hay imágenes importadas para este producto.'));
+    }
+    columnas.append(galeria, informacion);
+    contenedor.append(volver, sku, titulo, columnas);
+  } catch (error) {
+    if (solicitud !== catalogoWebRequest) return;
+    contenedor.replaceChildren(catalogoElemento('p', 'text-sm text-danger', 'No se pudo cargar el detalle del producto.'));
+    toast(error.message, 'error');
+  }
+}
+
+$('#catalogo-web-filtros').addEventListener('submit', event => {
+  event.preventDefault();
+  aplicarFiltrosCatalogo();
+});
+$('#catalogo-web-facetas').addEventListener('change', () => {
+  actualizarContadorFiltrosCatalogo();
+});
+$('#catalogo-web-aplicar-filtros').addEventListener('click', aplicarFiltrosCatalogo);
+$('#catalogo-web-limpiar-atributos').addEventListener('click', () => {
+  for (const opcion of document.querySelectorAll('#catalogo-web-facetas input[type="checkbox"]')) opcion.checked = false;
+  aplicarFiltrosCatalogo();
+});
+$('#catalogo-web-filtros-toggle').addEventListener('click', event => {
+  const panel = $('#catalogo-web-facetas-panel');
+  panel.hidden = !panel.hidden;
+  event.currentTarget.setAttribute('aria-expanded', String(!panel.hidden));
+});
+$('#catalogo-web-anterior').addEventListener('click', () => {
+  const query = new URLSearchParams(window.location.search);
+  const page = catalogoWebPagina - 1;
+  query.set('pagina', String(page));
+  window.history.pushState({}, '', `/catalogo/?${query}`);
+  loadCatalogoWebListado(page, $('#catalogo-web-busqueda').value, filtrosCatalogoDesdeUrl(query));
+});
+$('#catalogo-web-siguiente').addEventListener('click', () => {
+  const query = new URLSearchParams(window.location.search);
+  const page = catalogoWebPagina + 1;
+  query.set('pagina', String(page));
+  window.history.pushState({}, '', `/catalogo/?${query}`);
+  loadCatalogoWebListado(page, $('#catalogo-web-busqueda').value, filtrosCatalogoDesdeUrl(query));
+});
+$('#catalogo-web-tarjetas').addEventListener('click', event => {
+  const enlace = event.target.closest('[data-catalogo-producto]');
+  if (!enlace) return;
+  event.preventDefault();
+  const publicId = enlace.dataset.catalogoProducto;
+  window.history.pushState({}, '', `/catalogo/?producto=${encodeURIComponent(publicId)}`);
+  loadCatalogoWebDetalle(publicId);
+});
+if (window.addEventListener) {
+  window.addEventListener('popstate', () => {
+    if (window.location.pathname.startsWith('/catalogo/')) renderCatalogoWebRoute();
+  });
+}
+
 let stockTable;
 let stockRequest = 0;
 $('#stock-filters').addEventListener('submit', async event => {

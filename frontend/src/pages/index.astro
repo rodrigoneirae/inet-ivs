@@ -163,6 +163,10 @@ const apiBase = (import.meta.env.PUBLIC_API_BASE ?? '').replace(/\/$/, '');
               <svg class="nav-icon size-5 shrink-0" viewBox="0 0 24 24"><use href="#icon-pedidos"></use></svg>
               <span class="nav-label">Stock Informat</span>
             </button>
+            <button id="nav-catalogo" class="nav-link" type="button" hidden>
+              <svg class="nav-icon size-5 shrink-0" viewBox="0 0 24 24"><use href="#icon-pedidos"></use></svg>
+              <span class="nav-label">Catálogo</span>
+            </button>
           </nav>
 
           <div class="border-t border-line p-3">
@@ -274,6 +278,53 @@ const apiBase = (import.meta.env.PUBLIC_API_BASE ?? '').replace(/\/$/, '');
                 <p id="stock-status" class="card-subtitle" role="status" aria-live="polite">Ingresa un código de producto para consultar el stock.</p>
                 <div id="stock-table" class="mt-4" aria-label="Stock por bodega"></div>
               </div>
+            </section>
+
+            <section id="catalogo-web" class="w-full px-4 py-6 md:px-8 md:py-10" hidden>
+              <div id="catalogo-web-listado">
+                <div class="grid items-end gap-4 lg:grid-cols-[minmax(13rem,1fr)_minmax(24rem,48rem)_minmax(13rem,1fr)]">
+                  <div>
+                    <p class="text-xs font-semibold uppercase tracking-wider text-primary">Productos I-NET</p>
+                    <h2 class="mt-1 text-2xl font-bold tracking-tight text-ink">Catálogo</h2>
+                    <p class="mt-1 text-sm text-ink-muted">Busca productos y consulta sus imágenes disponibles.</p>
+                  </div>
+                  <form id="catalogo-web-filtros" class="relative min-w-0 w-full lg:justify-self-center" role="search">
+                    <label class="sr-only" for="catalogo-web-busqueda">SKU o descripción</label>
+                    <div class="grid items-center gap-2 sm:grid-cols-[minmax(0,1fr)_auto]">
+                      <div class="relative">
+                        <input id="catalogo-web-busqueda" name="busqueda" class="field pr-24" placeholder="SKU o descripción" maxlength="60" autocomplete="off" />
+                        <button id="catalogo-web-filtros-toggle" class="btn btn-secondary btn-sm absolute right-1 top-1/2 -translate-y-1/2" type="button" aria-expanded="false" aria-controls="catalogo-web-facetas-panel">Filtros</button>
+                      </div>
+                      <button class="btn btn-primary" type="submit">Buscar</button>
+                    </div>
+                    <div id="catalogo-web-filtros-activos" class="mt-2 flex flex-wrap gap-2" aria-label="Filtros seleccionados" aria-live="polite"></div>
+                    <div id="catalogo-web-facetas-panel" class="mt-2 rounded-xl border border-line bg-surface p-3 shadow-elevated md:p-4" hidden>
+                      <div class="flex flex-wrap items-center justify-between gap-2">
+                        <div>
+                          <h3 class="card-title">Filtros por atributos</h3>
+                          <p id="catalogo-web-facetas-estado" class="card-subtitle mt-1" role="status" aria-live="polite">Cargando filtros…</p>
+                        </div>
+                        <button id="catalogo-web-limpiar-atributos" class="btn btn-secondary btn-sm" type="button">Limpiar filtros</button>
+                      </div>
+                      <div id="catalogo-web-facetas" class="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3"></div>
+                      <div class="mt-4 flex justify-end border-t border-line pt-4">
+                        <button id="catalogo-web-aplicar-filtros" class="btn btn-primary" type="button">Filtrar</button>
+                      </div>
+                    </div>
+                  </form>
+                  <span id="catalogo-web-total" class="chip chip-neutral justify-self-start lg:justify-self-end" aria-live="polite"></span>
+                </div>
+                <div class="mt-6 min-w-0">
+                  <p id="catalogo-web-estado" class="text-sm text-ink-muted" role="status" aria-live="polite"></p>
+                  <div id="catalogo-web-tarjetas" class="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-7"></div>
+                  <nav class="mt-6 flex items-center justify-center gap-4" aria-label="Paginación del catálogo">
+                    <button id="catalogo-web-anterior" class="btn btn-secondary" type="button">Anterior</button>
+                    <span id="catalogo-web-pagina" class="text-sm text-ink-muted"></span>
+                    <button id="catalogo-web-siguiente" class="btn btn-secondary" type="button">Siguiente</button>
+                  </nav>
+                </div>
+              </div>
+              <div id="catalogo-web-detalle" hidden></div>
             </section>
 
             <section id="orders" class="w-full px-4 py-6 md:px-8 md:py-10" hidden>

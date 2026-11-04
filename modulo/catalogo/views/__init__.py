@@ -1,3 +1,3 @@
-from .catalogo import descargar_imagen, detalle, inicio
+from .api import descargar_imagenes_producto, detalle_producto, facetas_atributos, imagen, productos
 
-__all__ = ['descargar_imagen', 'detalle', 'inicio']
+__all__ = ['descargar_imagenes_producto', 'detalle_producto', 'facetas_atributos', 'imagen', 'productos']

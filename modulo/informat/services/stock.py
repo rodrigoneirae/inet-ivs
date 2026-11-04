@@ -76,7 +76,7 @@ def _token_rechazado(estado: object) -> bool:
                for error in errores)
 
 
-def consultar_stock(producto: str, bodega: str) -> list[dict]:
+def _consultar_productos(filtros: list[dict]) -> list[dict]:
     try:
         token = obtener_token(_renovar_token)
     except TokenStoreError as exc:
@@ -87,9 +87,6 @@ def consultar_stock(producto: str, bodega: str) -> list[dict]:
         url = urlunsplit((partes.scheme, partes.netloc, partes.path.rsplit('/', 1)[0] + '/wsProductosVentas', '', ''))
     if not url:
         raise ServicioInformatError('Falta configurar la URL de productos Informat.')
-    filtros = [{'Opcion': 0, 'Nombre': 'BODEGA', 'Dato': bodega}]
-    if producto:
-        filtros.append({'Opcion': 0, 'Nombre': 'PRODUCTO', 'Dato': producto})
     def consultar(token_actual: str) -> dict:
         try:
             return _post_json(url, {'ProcesoFiltros': {'Token': token_actual, 'Accion': 'GET', 'Filtros': filtros}})
@@ -111,3 +108,21 @@ def consultar_stock(producto: str, bodega: str) -> list[dict]:
     if not isinstance(productos, list) or any(not isinstance(item, dict) for item in productos):
         raise ServicioInformatError('Informat devolvió una respuesta de productos inesperada.')
     return productos
+
+
+def consultar_stock(producto: str, bodega: str) -> list[dict]:
+    filtros = [{'Opcion': 0, 'Nombre': 'BODEGA', 'Dato': bodega}]
+    if producto:
+        filtros.append({'Opcion': 0, 'Nombre': 'PRODUCTO', 'Dato': producto})
+    return _consultar_productos(filtros)
+
+
+def consultar_producto_venta(sku: str) -> dict | None:
+    """Consulta el detalle comercial de un único SKU en la WS de productos."""
+    productos = _consultar_productos([{'Opcion': 0, 'Nombre': 'PRODUCTO', 'Dato': sku}])
+    sku_buscado = sku.strip()
+    for producto in productos:
+        venta = producto.get('VENTA')
+        if isinstance(venta, dict) and str(venta.get('PRODUCTO_VTA', '')).strip() == sku_buscado:
+            return producto
+    return None

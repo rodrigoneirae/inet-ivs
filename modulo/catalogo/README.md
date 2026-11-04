@@ -2,7 +2,18 @@
 
 El catálogo consulta su maestro local en PostgreSQL. La tarea diaria copia los
 campos disponibles de `PRODVENT` en SQL Server; otra tarea importa imágenes y
-genera originales y derivados JPEG cuadrados de 1500 y 800 píxeles.
+genera el original, JPEG cuadrados de 1500 y 800 píxeles, y una miniatura
+optimizada de 400 píxeles para el listado y las miniaturas del slider.
+
+El detalle ampliado consulta la WS de productos por SKU bajo demanda y guarda
+una copia local por 24 horas. Si Informat no responde, se conserva y utiliza la
+última respuesta disponible. Se exponen descripciones, códigos de barra,
+atributos y métricas; se omiten precios, cuentas y existencias/stock.
+
+Los filtros `ATTUNO`–`ATTCIN` usan la tabla local `AtributoProducto`. Para
+poblarla inicialmente de forma gradual, ejecuta
+`python manage.py cargar_atributos_catalogo --pausa 1`; el proceso se puede
+interrumpir y volver a ejecutar. `--limite 100` permite cargar por lotes.
 
 ## Entorno
 
