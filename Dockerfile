@@ -16,8 +16,8 @@ WORKDIR /app
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt \
     && useradd --create-home --uid 10001 app \
-    && mkdir -p /var/lib/celery \
-    && chown app:app /app /var/lib/celery
+    && mkdir -p /var/lib/celery /var/lib/inet-ivs/catalogo \
+    && chown -R app:app /app /var/lib/celery /var/lib/inet-ivs
 
 COPY --chown=app:app . .
 COPY --from=astro-build --chown=app:app /frontend/dist /app/frontend/dist

@@ -1,0 +1,48 @@
+{% load static %}
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Catálogo de productos</title>
+  <link rel="stylesheet" href="{% static 'catalogo/catalogo.css' %}">
+</head>
+<body>
+  <header class="topbar"><a class="brand" href="{% url 'catalogo:inicio' %}">Catálogo</a><span>Productos I-NET</span></header>
+  <main class="layout">
+    <aside class="filters"><h2>Buscar productos</h2>
+      <form method="get" action="{% url 'catalogo:inicio' %}" role="search">
+        <label for="q">SKU o descripción</label>
+        <input id="q" name="q" type="search" maxlength="60" value="{{ busqueda }}" placeholder="Buscar…">
+        <button class="button primary" type="submit">Buscar</button>
+        {% if busqueda %}<a class="clear" href="{% url 'catalogo:inicio' %}">Limpiar búsqueda</a>{% endif %}
+      </form>
+      <p class="hint">{{ pagina.paginator.count }} productos</p>
+    </aside>
+    <section class="results" aria-label="Resultados del catálogo">
+      <div class="results-head"><h1>Catálogo</h1><span>Página {{ pagina.number }} de {{ pagina.paginator.num_pages|default:1 }}</span></div>
+      {% if pagina.object_list %}
+      <div class="grid">
+        {% for producto in pagina %}
+        <article class="card">
+          <a class="product-link" href="{% url 'catalogo:detalle' producto.public_id %}">
+            {% with portada=producto.imagenes.all|first %}
+              {% if portada %}<img class="cover" src="{% url 'catalogo:descargar_imagen' producto.public_id portada.numero 'preview' %}" alt="Imagen de {{ producto.descripcion_corta|default:producto.sku }}" loading="lazy">
+              {% else %}<div class="cover empty" aria-label="Sin imagen">Imagen no disponible</div>{% endif %}
+            {% endwith %}
+            <div class="card-copy"><strong>{{ producto.sku }}</strong><h2>{{ producto.descripcion|default:producto.descripcion_corta|default:'Sin descripción' }}</h2><span class="muted">{{ producto.codigo_barra }}</span></div>
+          </a>
+          <a class="button" href="{% url 'catalogo:detalle' producto.public_id %}">Ver detalle</a>
+        </article>
+        {% endfor %}
+      </div>
+      {% else %}<p class="empty-state">No se encontraron productos.</p>{% endif %}
+      {% if pagina.has_other_pages %}<nav class="pagination" aria-label="Paginación">
+        {% if pagina.has_previous %}<a class="button" href="?q={{ busqueda|urlencode }}&page={{ pagina.previous_page_number }}">← Anterior</a>{% endif %}
+        <span>{{ pagina.number }} / {{ pagina.paginator.num_pages }}</span>
+        {% if pagina.has_next %}<a class="button" href="?q={{ busqueda|urlencode }}&page={{ pagina.next_page_number }}">Siguiente →</a>{% endif %}
+      </nav>{% endif %}
+    </section>
+  </main>
+</body>
+</html>

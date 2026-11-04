@@ -47,6 +47,7 @@ INSTALLED_APPS = [
     'modulo.acceso',
     'modulo.anymarket',
     'modulo.informat',
+    'modulo.catalogo',
 ]
 
 MIDDLEWARE = [
@@ -106,13 +107,21 @@ CELERY_RESULT_BACKEND = os.environ.get('CELERY_RESULT_BACKEND', 'redis://localho
 CELERY_ACCEPT_CONTENT = ['json']
 CELERY_TASK_SERIALIZER = 'json'
 CELERY_RESULT_SERIALIZER = 'json'
-CELERY_TIMEZONE = os.environ.get('DJANGO_TIME_ZONE', 'UTC')
+CELERY_TIMEZONE = os.environ.get('CATALOGO_TIME_ZONE', 'America/Santiago')
 CELERY_BROKER_CONNECTION_RETRY_ON_STARTUP = True
 CELERY_WORKER_CONCURRENCY = int(os.environ.get('CELERY_WORKER_CONCURRENCY', '2'))
 CELERY_BEAT_SCHEDULE = {
     'sincronizar-usuarios-ivs': {
         'task': 'modulo.acceso.tasks.sincronizar_usuarios_ivs',
         'schedule': 3600.0,
+    },
+    'sincronizar-maestro-catalogo': {
+        'task': 'modulo.catalogo.tasks.sincronizar_maestro_catalogo',
+        'schedule': crontab(hour=3, minute=0),
+    },
+    'sincronizar-imagenes-catalogo': {
+        'task': 'modulo.catalogo.tasks.sincronizar_imagenes_catalogo',
+        'schedule': crontab(hour=3, minute=30),
     },
 }
 
@@ -257,6 +266,8 @@ STORAGES = {
     'default': {'BACKEND': 'django.core.files.storage.FileSystemStorage'},
     'staticfiles': {'BACKEND': 'whitenoise.storage.CompressedManifestStaticFilesStorage'},
 }
+CATALOGO_SOURCE_DIR = os.environ.get('CATALOGO_SOURCE_DIR', '/mnt/catalogo_web')
+CATALOGO_STORAGE_ROOT = Path(os.environ.get('CATALOGO_STORAGE_ROOT', BASE_DIR / 'media' / 'catalogo'))
 
 if not DEBUG:
     SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')

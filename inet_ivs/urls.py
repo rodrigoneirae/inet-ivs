@@ -27,6 +27,7 @@ urlpatterns = [
     path('', views.inicio, name='inicio'),
     path('pedidos/', views.pedidos, name='pedidos'),
     path('stock/', views.stock, name='stock'),
+    path('catalogo/', include('modulo.catalogo.urls')),
     path('login/', RedirectView.as_view(url='/', permanent=False), name='login'),
     path('anymarket/', include('modulo.anymarket.urls')),
 ]
