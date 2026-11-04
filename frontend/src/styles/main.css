@@ -4,8 +4,7 @@
 
 /*
   Sistema de diseño INET IVS.
-  Paleta base en OKLCH (mejor perceptibilidad y escalado uniforme) con
-  familias brand (índigo), success (verde), warning (ámbar) y danger (rojo).
+  Paleta base con azul marino de marca, success (verde), warning (ámbar) y danger (rojo).
   Los tokens semánticos (canvas, surface, ink, line, primary...) se redefinen
   en el tema oscuro, por lo que los componentes no dependen de variantes dark:.
 */
@@ -74,12 +73,12 @@
   --color-line: oklch(91.8% 0.009 255);
   --color-line-strong: oklch(85% 0.014 255);
 
-  --color-primary: oklch(55.2% 0.214 265);
-  --color-primary-hover: oklch(48.6% 0.188 265);
-  --color-primary-ink: oklch(45.5% 0.18 265);
-  --color-primary-soft: oklch(96.2% 0.022 265);
+  --color-primary: #143c6a;
+  --color-primary-hover: #0f2f54;
+  --color-primary-ink: #143c6a;
+  --color-primary-soft: #e8eff6;
   --color-primary-contrast: oklch(100% 0 0);
-  --color-ring: oklch(60.4% 0.196 265);
+  --color-ring: #143c6a;
 
   --color-success: oklch(57.6% 0.168 152);
   --color-success-hover: oklch(49.5% 0.145 152);
@@ -110,7 +109,7 @@
   --shadow-card: 0 1px 2px 0 oklch(21.5% 0.035 265 / 0.04), 0 8px 24px -14px oklch(21.5% 0.035 265 / 0.18);
   --shadow-elevated: 0 2px 6px -2px oklch(21.5% 0.035 265 / 0.08), 0 18px 40px -20px oklch(21.5% 0.035 265 / 0.28);
   --shadow-pop: 0 24px 60px -24px oklch(21.5% 0.035 265 / 0.35);
-  --shadow-brand: 0 10px 24px -12px oklch(55.2% 0.214 265 / 0.55);
+  --shadow-brand: 0 10px 24px -12px color-mix(in oklab, var(--color-primary) 55%, transparent);
 
   --animate-fade-in: fade-in 0.25s ease-out;
   --animate-slide-up: slide-up 0.4s cubic-bezier(0.22, 1, 0.36, 1);
@@ -143,12 +142,12 @@
   --color-line: oklch(32.5% 0.032 262);
   --color-line-strong: oklch(41% 0.036 262);
 
-  --color-primary: oklch(72% 0.155 265);
-  --color-primary-hover: oklch(78% 0.135 265);
-  --color-primary-ink: oklch(85% 0.085 265);
-  --color-primary-soft: oklch(30% 0.062 265);
-  --color-primary-contrast: oklch(19% 0.035 265);
-  --color-ring: oklch(72% 0.155 265);
+  --color-primary: #78a6d4;
+  --color-primary-hover: #91b9df;
+  --color-primary-ink: #b9d5f1;
+  --color-primary-soft: #263a50;
+  --color-primary-contrast: #10253c;
+  --color-ring: #78a6d4;
 
   --color-success: oklch(74% 0.16 152);
   --color-success-hover: oklch(80% 0.14 152);
@@ -171,7 +170,7 @@
   --shadow-card: 0 1px 2px 0 oklch(8% 0.02 265 / 0.4), 0 10px 30px -16px oklch(8% 0.02 265 / 0.7);
   --shadow-elevated: 0 2px 8px -2px oklch(8% 0.02 265 / 0.5), 0 22px 45px -22px oklch(8% 0.02 265 / 0.85);
   --shadow-pop: 0 28px 65px -26px oklch(8% 0.02 265 / 0.9);
-  --shadow-brand: 0 10px 26px -14px oklch(72% 0.155 265 / 0.55);
+  --shadow-brand: 0 10px 26px -14px color-mix(in oklab, var(--color-primary) 55%, transparent);
 }
 
 [hidden] { display: none !important; }
@@ -204,6 +203,14 @@
     @apply inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold transition-[background-color,color,box-shadow,transform] duration-150 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary disabled:pointer-events-none disabled:opacity-50;
   }
 
+  .btn-icon {
+    @apply size-4 shrink-0;
+  }
+
+  .btn-icon svg {
+    @apply size-full;
+  }
+
   .btn-primary {
     @apply bg-primary text-primary-contrast shadow-brand hover:bg-primary-hover active:translate-y-px;
   }
@@ -226,6 +233,10 @@
 
   .btn-success {
     @apply bg-success text-success-contrast hover:bg-success-hover active:translate-y-px;
+  }
+
+  .btn-warning {
+    @apply bg-warning text-warning-contrast hover:bg-warning-hover active:translate-y-px;
   }
 
   .btn-sm {

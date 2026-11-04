@@ -1,0 +1,30 @@
+---
+interface Props {
+  variant?: 'primary' | 'secondary' | 'success' | 'warning' | 'danger' | 'soft' | 'ghost';
+  size?: 'default' | 'sm';
+  type?: 'button' | 'submit' | 'reset';
+  disabled?: boolean;
+  class?: string;
+  ariaLabel?: string;
+}
+
+const {
+  variant = 'primary',
+  size = 'default',
+  type = 'button',
+  disabled = false,
+  class: className = '',
+  ariaLabel,
+} = Astro.props;
+const hasIcon = Astro.slots.has('icon');
+---
+
+<button
+  type={type}
+  disabled={disabled}
+  aria-label={ariaLabel}
+  class:list={['btn', `btn-${variant}`, size === 'sm' && 'btn-sm', className]}
+>
+  {hasIcon && <span class="btn-icon" aria-hidden="true"><slot name="icon" /></span>}
+  <slot />
+</button>

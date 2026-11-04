@@ -77,11 +77,10 @@ const apiBase = (import.meta.env.PUBLIC_API_BASE ?? '').replace(/\/$/, '');
       <div class="grid min-h-screen lg:grid-cols-[1.05fr_1fr]">
         <section class="brand-panel relative hidden overflow-hidden px-12 py-14 text-white lg:flex lg:flex-col lg:justify-between">
           <div class="relative z-10 flex items-center gap-3">
-            <span class="brand-mark flex size-11 items-center justify-center rounded-xl text-base font-bold">IVS</span>
-            <span>
-              <span class="block text-lg font-semibold tracking-tight">INET IVS</span>
-              <span class="block text-sm text-white/60">Panel operativo</span>
+            <span class="flex h-12 items-center rounded-lg bg-white px-3">
+              <img src="/LOGO-INVERSIERRA.png" alt="Inversierra" class="h-auto w-40" />
             </span>
+            <span class="text-sm text-white/60">Panel operativo</span>
           </div>
           <div class="relative z-10 max-w-lg">
             <h2 class="text-4xl font-bold leading-tight tracking-tight">Tu operación de e-commerce en un solo lugar</h2>
@@ -109,8 +108,7 @@ const apiBase = (import.meta.env.PUBLIC_API_BASE ?? '').replace(/\/$/, '');
         <section class="flex items-center justify-center px-5 py-12">
           <div class="w-full max-w-md">
             <div class="flex items-center gap-3 lg:hidden">
-              <span class="brand-mark flex size-10 items-center justify-center rounded-xl text-sm font-bold text-white">IVS</span>
-              <span class="text-lg font-semibold tracking-tight">INET IVS</span>
+              <img src="/LOGO-INVERSIERRA.png" alt="Inversierra" class="h-auto w-40" />
             </div>
             <h1 class="mt-8 text-3xl font-bold tracking-tight text-ink lg:mt-0">Bienvenido a INET IVS</h1>
             <p class="mt-2 text-sm text-ink-muted">Ingresa con tu usuario y contraseña de IVS SAT.</p>
@@ -139,9 +137,9 @@ const apiBase = (import.meta.env.PUBLIC_API_BASE ?? '').replace(/\/$/, '');
       <div class="app-shell">
         <aside id="sidebar" class="sidebar" data-state="closed" data-collapsed="false" aria-label="Navegación principal">
           <div class="flex h-16 shrink-0 items-center gap-3 border-b border-line px-4">
-            <span class="brand-mark flex size-9 shrink-0 items-center justify-center rounded-lg text-sm font-bold text-white">IVS</span>
+            <img src="/toggle-logo.png" alt="" class="size-9 shrink-0 rounded-lg object-contain" />
             <span class="brand-wordmark min-w-0">
-              <span class="block truncate text-sm font-semibold tracking-tight text-ink">INET IVS</span>
+              <img src="/LOGO-INVERSIERRA.png" alt="Inversierra" class="block h-auto w-32 max-w-full" />
               <span class="sidebar-meta block truncate text-xs text-ink-subtle">Panel operativo</span>
             </span>
             <button id="sidebar-collapse" class="icon-btn ml-auto hidden size-8 md:inline-flex" type="button" aria-label="Contraer el menú" aria-expanded="true">
@@ -298,7 +296,7 @@ const apiBase = (import.meta.env.PUBLIC_API_BASE ?? '').replace(/\/$/, '');
                       <button class="btn btn-primary" type="submit">Buscar</button>
                     </div>
                     <div id="catalogo-web-filtros-activos" class="mt-2 flex flex-wrap gap-2" aria-label="Filtros seleccionados" aria-live="polite"></div>
-                    <div id="catalogo-web-facetas-panel" class="mt-2 rounded-xl border border-line bg-surface p-3 shadow-elevated md:p-4" hidden>
+                    <div id="catalogo-web-facetas-panel" class="absolute left-0 right-0 top-full z-30 mt-2 max-h-[min(70vh,36rem)] overflow-y-auto rounded-xl border border-line bg-surface p-3 shadow-elevated md:p-4" hidden>
                       <div class="flex flex-wrap items-center justify-between gap-2">
                         <div>
                           <h3 class="card-title">Filtros por atributos</h3>
@@ -307,7 +305,7 @@ const apiBase = (import.meta.env.PUBLIC_API_BASE ?? '').replace(/\/$/, '');
                         <button id="catalogo-web-limpiar-atributos" class="btn btn-secondary btn-sm" type="button">Limpiar filtros</button>
                       </div>
                       <div id="catalogo-web-facetas" class="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3"></div>
-                      <div class="mt-4 flex justify-end border-t border-line pt-4">
+                      <div class="sticky bottom-0 mt-4 flex justify-end border-t border-line bg-surface pt-3">
                         <button id="catalogo-web-aplicar-filtros" class="btn btn-primary" type="button">Filtrar</button>
                       </div>
                     </div>
@@ -324,7 +322,7 @@ const apiBase = (import.meta.env.PUBLIC_API_BASE ?? '').replace(/\/$/, '');
                   </nav>
                 </div>
               </div>
-              <div id="catalogo-web-detalle" hidden></div>
+              <div id="catalogo-web-detalle" class="mx-auto w-full max-w-[1600px]" hidden></div>
             </section>
 
             <section id="orders" class="w-full px-4 py-6 md:px-8 md:py-10" hidden>

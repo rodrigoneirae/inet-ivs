@@ -710,7 +710,7 @@ async function loadCatalogoWebListado(pagina, busqueda, filtros = {}) {
       ver.dataset.catalogoProducto = producto.public_id;
       ver.append(catalogoElemento('span', 'text-base', '◎'), document.createTextNode('Ver detalle'));
       const descargas = catalogoElemento('details', 'relative');
-      const abrirDescargas = catalogoElemento('summary', 'inline-flex cursor-pointer list-none items-center gap-2 whitespace-nowrap rounded-full bg-success px-4 py-2 text-sm font-semibold text-white hover:bg-success/90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-success');
+      const abrirDescargas = catalogoElemento('summary', 'inline-flex cursor-pointer list-none items-center gap-2 whitespace-nowrap rounded-full bg-primary px-4 py-2 text-sm font-semibold text-primary-contrast hover:bg-primary-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary');
       abrirDescargas.append(catalogoElemento('span', 'text-base', '↓'), document.createTextNode('Descargar'));
       const opciones = catalogoElemento('div', 'absolute bottom-full right-0 z-10 mb-2 min-w-48 overflow-hidden rounded-xl border border-line bg-surface p-1 shadow-elevated');
       for (const [etiqueta, tamano] of [['Alta (original)', 'alta'], ['1500 × 1500', '1500'], ['800 × 800', '800']]) {
@@ -758,73 +758,49 @@ async function loadCatalogoWebDetalle(publicId) {
     const venta = detalleWs.venta || {};
     const existencias = detalleWs.existencias || {};
     const metricas = detalleWs.metricas || {};
-    const titulo = catalogoElemento('h2', 'mt-5 text-2xl font-bold tracking-tight text-ink',
+    const titulo = catalogoElemento('h2', 'mt-1 text-xl font-bold leading-snug tracking-tight text-ink',
       venta.descripcion_larga || producto.descripcion || 'Producto');
-    const sku = catalogoElemento('p', 'mt-1 text-sm font-semibold text-primary', producto.sku);
-    const columnas = catalogoElemento('div', 'mt-5 grid gap-6 xl:grid-cols-2');
+    const sku = catalogoElemento('p', 'text-sm font-semibold text-primary', producto.sku);
+    const columnas = catalogoElemento('div', 'mt-5 grid items-start gap-5 xl:grid-cols-2');
     const galeria = catalogoElemento('div', 'space-y-3');
     const informacion = catalogoElemento('div', 'space-y-4');
-    const ficha = catalogoElemento('dl', 'card divide-y divide-line p-4');
+    const ficha = catalogoElemento('dl', 'space-y-2');
+    informacion.append(sku, titulo);
     const codigosBarra = (venta.codigos_barra || []).join(', ') || producto.codigo_barra || '—';
     const estado = existencias.estado === null || existencias.estado === undefined
       ? (producto.estado === null ? '—' : String(producto.estado)) : String(existencias.estado);
     const filas = [
       ['Estado I-NET', estado],
       ['Descripción corta', venta.descripcion_corta || producto.descripcion_corta || '—'],
-      ['Especificaciones', venta.especificaciones || '—'],
-      ['Código(s) de barra', codigosBarra],
-      ['Código de existencia', producto.codigo_existencia || '—'],
       ['Unidad', [existencias.unidad, existencias.unidad_abreviada].filter(Boolean).join(' · ') || '—'],
       ['Clasificación', existencias.clasificacion || '—'],
+      ['Largo', metricas.largo ? `${metricas.largo} cm` : '—'],
+      ['Ancho', metricas.ancho ? `${metricas.ancho} cm` : '—'],
+      ['Alto', metricas.alto ? `${metricas.alto} cm` : '—'],
+      ['Peso', metricas.peso ? `${metricas.peso} kg` : '—'],
+      ['EAN / código de barras', codigosBarra],
     ];
     for (const [etiqueta, valor] of filas) {
-      const fila = catalogoElemento('div', 'flex items-start justify-between gap-4 py-3');
-      fila.append(catalogoElemento('dt', 'text-sm font-medium text-ink-muted', etiqueta));
+      const fila = catalogoElemento('div', 'flex items-center gap-3 rounded-lg border border-line bg-surface-muted/40 px-3 py-2');
+      fila.append(catalogoElemento('span', 'grid h-8 w-8 shrink-0 place-items-center rounded-full bg-primary/10 text-sm text-primary', '✧'));
+      fila.append(catalogoElemento('dt', 'min-w-0 flex-1 text-sm font-medium text-ink', etiqueta));
       fila.append(catalogoElemento('dd', 'm-0 text-right text-sm font-semibold text-ink', valor));
       ficha.append(fila);
     }
-    informacion.append(ficha);
     if (detalleWs.atributos?.length) {
-      const tarjetaAtributos = catalogoElemento('section', 'card p-4');
-      tarjetaAtributos.append(catalogoElemento('h3', 'font-semibold text-ink', 'Atributos'));
-      const etiquetas = catalogoElemento('div', 'mt-3 flex flex-wrap gap-2');
+      const tarjetaAtributos = catalogoElemento('section', 'flex flex-wrap gap-2');
       for (const atributo of detalleWs.atributos) {
-        etiquetas.append(catalogoElemento('span', 'chip chip-neutral', atributo.nombre));
+        tarjetaAtributos.append(catalogoElemento('span', 'chip chip-neutral text-xs font-semibold uppercase', `• ${atributo.nombre}`));
       }
-      tarjetaAtributos.append(etiquetas);
       informacion.append(tarjetaAtributos);
     }
-    const unidades = metricas.unidad ? ` (${metricas.unidad})` : '';
-    const valoresMetricos = [
-      ['Alto', metricas.alto ? `${metricas.alto} cm` : ''],
-      ['Largo', metricas.largo ? `${metricas.largo} cm` : ''],
-      ['Ancho', metricas.ancho ? `${metricas.ancho} cm` : ''],
-      ['Peso', metricas.peso ? `${metricas.peso} kg` : ''],
-      ['Volumen', metricas.volumen || ''],
-      ['Factor de conversión', metricas.factor_conversion ? `${metricas.factor_conversion}${unidades}` : ''],
-    ].filter(([, valor]) => valor);
-    if (valoresMetricos.length) {
-      const tarjetaMetricas = catalogoElemento('section', 'card p-4');
-      tarjetaMetricas.append(catalogoElemento('h3', 'font-semibold text-ink', 'Dimensiones y peso'));
-      const listaMetricas = catalogoElemento('dl', 'mt-2 divide-y divide-line');
-      for (const [etiqueta, valor] of valoresMetricos) {
-        const fila = catalogoElemento('div', 'flex items-center justify-between gap-4 py-2');
-        fila.append(catalogoElemento('dt', 'text-sm text-ink-muted', etiqueta));
-        fila.append(catalogoElemento('dd', 'm-0 text-sm font-semibold text-ink', valor));
-        listaMetricas.append(fila);
-      }
-      tarjetaMetricas.append(listaMetricas);
-      informacion.append(tarjetaMetricas);
-    }
-    const descargasProducto = catalogoElemento('section', 'card p-4');
-    descargasProducto.append(catalogoElemento('h3', 'font-semibold text-ink', 'Descargar todas las imágenes'));
-    descargasProducto.append(catalogoElemento('p', 'mt-1 text-sm text-ink-muted',
-      'Descarga un ZIP con todas las fotos del producto en la resolución elegida.'));
-    const opcionesDescargaProducto = catalogoElemento('div', 'mt-3 flex flex-wrap gap-2');
+    informacion.append(ficha);
+    const descargasProducto = catalogoElemento('section', 'flex flex-wrap items-center gap-2 border-t border-line pt-3');
+    descargasProducto.append(catalogoElemento('span', 'mr-1 text-sm font-semibold text-ink', 'Descargar todas:'));
     for (const [texto, tamano] of [['Alta calidad', 'alta'], ['1500 × 1500', '1500'], ['800 × 800', '800']]) {
       const enlace = catalogoElemento('a', 'btn btn-primary btn-sm', `↓ ${texto}`);
       enlace.href = `/api/v1/catalogo/productos/${encodeURIComponent(producto.public_id)}/descargar/${tamano}/`;
-      opcionesDescargaProducto.append(enlace);
+      descargasProducto.append(enlace);
     }
     informacion.append(descargasProducto);
     if (producto.detalle_ws_actualizado_en) {
@@ -852,18 +828,21 @@ async function loadCatalogoWebDetalle(publicId) {
       siguiente.setAttribute('aria-label', 'Imagen siguiente');
       marco.append(anterior, siguiente);
       const miniaturas = catalogoElemento('div', 'flex gap-2 overflow-x-auto pb-1');
-      const descargas = catalogoElemento('div', 'flex flex-wrap items-center gap-2');
-      descargas.append(catalogoElemento('span', 'mr-1 w-full text-sm font-semibold text-ink-muted', 'Descargar imagen activa:'));
+      const descargas = catalogoElemento('details', 'relative inline-block');
+      const menuDescargas = catalogoElemento('summary', 'inline-flex cursor-pointer list-none items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white');
+      menuDescargas.append(catalogoElemento('span', '', '↓'), document.createTextNode('Imagen activa'));
+      const opcionesImagenActiva = catalogoElemento('div', 'absolute bottom-full left-0 z-10 mb-2 min-w-48 overflow-hidden rounded-xl border border-line bg-surface p-1 shadow-elevated');
       const enlacesDescarga = [
         ['Alta calidad', 'original'],
         ['1500 × 1500', 'resolucion_1500'],
         ['800 × 800', 'resolucion_800'],
       ].map(([texto, campo]) => {
-        const enlace = catalogoElemento('a', 'btn btn-primary btn-sm', texto);
+        const enlace = catalogoElemento('a', 'block rounded-lg px-3 py-2.5 text-sm font-semibold text-ink no-underline hover:bg-surface-muted', texto);
         enlace.href = producto.imagenes[indiceActivo][campo];
-        descargas.append(enlace);
+        opcionesImagenActiva.append(enlace);
         return { enlace, campo };
       });
+      descargas.append(menuDescargas, opcionesImagenActiva);
       const leyenda = catalogoElemento('p', 'text-xs text-ink-muted');
       const botonesMiniatura = producto.imagenes.map((imagen, indice) => {
         const boton = catalogoElemento('button', 'shrink-0 rounded-lg border-2 border-transparent p-1 focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary');
@@ -894,7 +873,7 @@ async function loadCatalogoWebDetalle(publicId) {
       galeria.append(catalogoElemento('p', 'text-sm text-ink-muted', 'No hay imágenes importadas para este producto.'));
     }
     columnas.append(galeria, informacion);
-    contenedor.append(volver, sku, titulo, columnas);
+    contenedor.append(volver, columnas);
   } catch (error) {
     if (solicitud !== catalogoWebRequest) return;
     contenedor.replaceChildren(catalogoElemento('p', 'text-sm text-danger', 'No se pudo cargar el detalle del producto.'));
