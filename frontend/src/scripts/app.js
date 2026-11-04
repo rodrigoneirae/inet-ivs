@@ -19,9 +19,12 @@ let applied = new URLSearchParams();
 let ordersRequest = 0;
 let searchTimer;
 let puedeCrearInet = false;
+let puedeDescargarCatalogo = false;
 let perfilesPagina = 1;
 let perfilesBusqueda = '';
 let perfilesRequest = 0;
+let perfilesDisponibles = [];
+let permisosDisponibles = [];
 
 function readStorage(key) {
   try {
@@ -153,10 +156,19 @@ async function request(path, options = {}) {
 }
 
 async function post(path, data = {}) {
+  const body = new URLSearchParams();
+  if (data instanceof FormData || data instanceof URLSearchParams) {
+    for (const [key, value] of data.entries()) body.append(key, value);
+  } else {
+    for (const [key, value] of Object.entries(data)) {
+      if (Array.isArray(value)) value.forEach(item => body.append(key, item));
+      else if (value !== undefined && value !== null) body.append(key, value);
+    }
+  }
   const response = await request(path, {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'X-CSRFToken': csrf },
-    body: new URLSearchParams(data),
+    body,
   });
   return response.json();
 }
@@ -179,6 +191,7 @@ function setCurrentNav(current) {
 function displaySession(data) {
   csrf = data.csrf;
   puedeCrearInet = Boolean(data.puede_sincronizar);
+  puedeDescargarCatalogo = Boolean(data.puede_ver_catalogo_web && data.puede_descargar_catalogo);
   $('#login-screen').hidden = Boolean(data.usuario);
   $('#app').hidden = !data.usuario;
   if (data.usuario) {
@@ -492,6 +505,64 @@ $('#nav-orders').addEventListener('click', () => { window.location.assign('/pedi
 $('#nav-stock').addEventListener('click', () => { window.location.assign('/stock/'); });
 $('#nav-catalogo').addEventListener('click', () => { window.location.assign('/catalogo/'); });
 $('#nav-users').addEventListener('click', () => { window.location.assign('/usuarios/'); });
+
+function renderPermissionChoices(seleccionados = []) {
+  const opciones = $('#perfil-permisos');
+  opciones.replaceChildren();
+  const seleccion = new Set(seleccionados);
+  permisosDisponibles.forEach((permiso, indice) => {
+    const label = catalogoElemento('label', 'flex cursor-pointer items-start gap-2 rounded-lg border border-line p-2.5 text-sm text-ink hover:bg-surface-muted');
+    const checkbox = document.createElement('input');
+    checkbox.type = 'checkbox';
+    checkbox.name = 'permisos';
+    checkbox.value = permiso.clave;
+    checkbox.checked = seleccion.has(permiso.clave);
+    checkbox.className = 'mt-0.5 size-4 shrink-0 rounded accent-primary';
+    checkbox.id = `permiso-perfil-${indice}`;
+    label.htmlFor = checkbox.id;
+    label.append(checkbox, document.createTextNode(permiso.nombre));
+    opciones.append(label);
+  });
+}
+
+function renderProfilesList() {
+  const lista = $('#perfiles-lista');
+  lista.replaceChildren();
+  for (const perfil of perfilesDisponibles) {
+    const tarjeta = catalogoElemento('article', 'rounded-lg border border-line p-3');
+    const encabezado = catalogoElemento('div', 'flex flex-wrap items-center justify-between gap-2');
+    encabezado.append(catalogoElemento('h4', 'font-semibold text-ink', perfil.nombre));
+    encabezado.append(catalogoElemento('span', 'chip chip-neutral',
+      perfil.administrador ? 'Perfil protegido' : `${perfil.usuarios_asignados} usuarios`));
+    tarjeta.append(encabezado);
+    const permisos = catalogoElemento('div', 'mt-2 flex flex-wrap gap-1.5');
+    const etiquetas = perfil.permisos.map(clave => permisosDisponibles.find(opcion => opcion.clave === clave)?.nombre || clave);
+    if (etiquetas.length) {
+      for (const etiqueta of etiquetas) permisos.append(catalogoElemento('span', 'chip chip-neutral text-xs', etiqueta));
+    } else {
+      permisos.append(catalogoElemento('span', 'text-sm text-ink-muted', 'Sin permisos asignados'));
+    }
+    tarjeta.append(permisos);
+    if (!perfil.administrador) {
+      const acciones = catalogoElemento('div', 'mt-3 flex gap-2');
+      const editar = catalogoElemento('button', 'btn btn-secondary btn-sm', 'Editar');
+      editar.type = 'button';
+      editar.dataset.editarPerfil = perfil.clave;
+      const eliminar = catalogoElemento('button', 'btn btn-danger btn-sm', 'Eliminar');
+      eliminar.type = 'button';
+      eliminar.dataset.eliminarPerfil = perfil.clave;
+      eliminar.disabled = perfil.usuarios_asignados > 0;
+      eliminar.title = eliminar.disabled ? 'Retira el perfil de los usuarios antes de eliminarlo.' : '';
+      acciones.append(editar, eliminar);
+      tarjeta.append(acciones);
+    }
+    lista.append(tarjeta);
+  }
+  if (!perfilesDisponibles.length) {
+    lista.append(catalogoElemento('p', 'text-sm text-ink-muted', 'Aún no hay perfiles configurados.'));
+  }
+}
+
 async function loadUserProfiles(pagina = 1, busqueda = '') {
   const solicitud = ++perfilesRequest;
   $('#perfiles-estado').textContent = 'Cargando usuarios…';
@@ -504,6 +575,10 @@ async function loadUserProfiles(pagina = 1, busqueda = '') {
     if (solicitud !== perfilesRequest) return;
     perfilesPagina = datos.pagina;
     perfilesBusqueda = busqueda;
+    perfilesDisponibles = datos.perfiles;
+    permisosDisponibles = datos.permisos_disponibles;
+    renderProfilesList();
+    renderPermissionChoices();
     $('#perfiles-total').textContent = `${datos.total} usuarios`;
     $('#perfiles-sin-configurar').hidden = datos.grupo_configurado;
     const filas = $('#perfiles-usuarios');
@@ -515,6 +590,7 @@ async function loadUserProfiles(pagina = 1, busqueda = '') {
       filaVacia.append(celdaVacia);
       filas.append(filaVacia);
     }
+    let indiceFila = 0;
     for (const usuario of datos.usuarios) {
       const fila = catalogoElemento('tr', 'align-middle');
       fila.append(catalogoElemento('th', 'px-4 py-3 font-medium text-ink', usuario.username));
@@ -523,31 +599,37 @@ async function loadUserProfiles(pagina = 1, busqueda = '') {
       if (usuario.superusuario) {
         perfil.append(catalogoElemento('span', 'chip chip-neutral', 'Superusuario · acceso total'));
       } else {
-        perfil.append(catalogoElemento('span', usuario.administrador ? 'chip bg-primary-soft text-primary-ink' : 'chip chip-neutral',
-          usuario.administrador ? 'Administrador' : 'Sin perfil'));
-      }
-      fila.append(perfil);
-      const accion = catalogoElemento('td', 'px-4 py-3 text-right');
-      if (!usuario.superusuario) {
-        const formulario = catalogoElemento('form', 'inline-flex items-center justify-end gap-3');
+        const formulario = catalogoElemento('form', 'flex flex-wrap gap-2');
         formulario.dataset.perfilUsuario = 'true';
+        formulario.id = `perfil-usuario-form-${indiceFila}`;
         const nombre = document.createElement('input');
         nombre.type = 'hidden';
         nombre.name = 'username';
         nombre.value = usuario.username;
-        const label = catalogoElemento('label', 'inline-flex items-center gap-2 text-sm text-ink');
-        const checkbox = document.createElement('input');
-        checkbox.type = 'checkbox';
-        checkbox.name = 'administrador';
-        checkbox.checked = usuario.administrador;
-        checkbox.disabled = !datos.grupo_configurado;
-        checkbox.className = 'size-4 rounded accent-primary';
-        label.append(checkbox, document.createTextNode('Administrador'));
+        formulario.append(nombre);
+        const gruposAsignados = new Set(usuario.perfiles);
+        for (const perfilDisponible of perfilesDisponibles) {
+          const label = catalogoElemento('label', 'inline-flex cursor-pointer items-center gap-1.5 rounded-full border border-line px-2.5 py-1 text-xs text-ink hover:bg-surface-muted');
+          const checkbox = document.createElement('input');
+          checkbox.type = 'checkbox';
+          checkbox.name = 'perfiles';
+          checkbox.value = perfilDisponible.clave;
+          checkbox.checked = gruposAsignados.has(perfilDisponible.clave);
+          checkbox.className = 'size-3.5 rounded accent-primary';
+          label.append(checkbox, document.createTextNode(perfilDisponible.nombre));
+          formulario.append(label);
+        }
+        perfil.append(formulario);
+      }
+      fila.append(perfil);
+      const accion = catalogoElemento('td', 'px-4 py-3 text-right');
+      if (!usuario.superusuario) {
         const guardar = catalogoElemento('button', 'btn btn-secondary btn-sm', 'Guardar');
         guardar.type = 'submit';
-        guardar.disabled = !datos.grupo_configurado;
-        formulario.append(nombre, label, guardar);
-        accion.append(formulario);
+        guardar.disabled = !perfilesDisponibles.length;
+        guardar.setAttribute('form', `perfil-usuario-form-${indiceFila}`);
+        indiceFila += 1;
+        accion.append(guardar);
       }
       fila.append(accion);
       filas.append(fila);
@@ -579,14 +661,72 @@ $('#perfiles-usuarios').addEventListener('submit', async event => {
     const datos = new FormData(formulario);
     const actualizado = await post('/api/v1/acceso/perfiles/usuario/', {
       username: datos.get('username'),
-      administrador: datos.get('administrador') ? 'true' : '',
+      perfiles: datos.getAll('perfiles'),
     });
-    toast(`Perfil de ${actualizado.username} actualizado.`, 'success');
+    toast(`Perfiles de ${actualizado.username} actualizados.`, 'success');
     await loadUserProfiles(perfilesPagina, perfilesBusqueda);
   } catch (error) {
     toast(error.message, 'error');
   } finally {
     guardar.disabled = false;
+  }
+});
+$('#perfil-editor').addEventListener('submit', async event => {
+  event.preventDefault();
+  const editor = event.currentTarget;
+  const boton = $('#perfil-guardar');
+  boton.disabled = true;
+  try {
+    const datos = new FormData(editor);
+    const resultado = await post('/api/v1/acceso/perfiles/guardar/', {
+      nombre: datos.get('nombre'),
+      nombre_original: datos.get('nombre_original'),
+      permisos: datos.getAll('permisos'),
+    });
+    toast(resultado.mensaje, 'success');
+    editor.reset();
+    editor.elements.nombre_original.value = '';
+    $('#perfil-editor-titulo').textContent = 'Crear perfil';
+    boton.textContent = 'Crear perfil';
+    $('#perfil-cancelar').hidden = true;
+    await loadUserProfiles(perfilesPagina, perfilesBusqueda);
+  } catch (error) {
+    toast(error.message, 'error');
+  } finally {
+    boton.disabled = false;
+  }
+});
+$('#perfil-cancelar').addEventListener('click', () => {
+  const editor = $('#perfil-editor');
+  editor.reset();
+  editor.elements.nombre_original.value = '';
+  $('#perfil-editor-titulo').textContent = 'Crear perfil';
+  $('#perfil-guardar').textContent = 'Crear perfil';
+  $('#perfil-cancelar').hidden = true;
+});
+$('#perfiles-lista').addEventListener('click', async event => {
+  const editar = event.target.closest('[data-editar-perfil]');
+  if (editar) {
+    const perfil = perfilesDisponibles.find(item => item.clave === editar.dataset.editarPerfil);
+    if (!perfil) return;
+    const editor = $('#perfil-editor');
+    editor.elements.nombre.value = perfil.nombre;
+    editor.elements.nombre_original.value = perfil.nombre;
+    renderPermissionChoices(perfil.permisos);
+    $('#perfil-editor-titulo').textContent = `Editar perfil: ${perfil.nombre}`;
+    $('#perfil-guardar').textContent = 'Guardar cambios';
+    $('#perfil-cancelar').hidden = false;
+    editor.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    return;
+  }
+  const eliminar = event.target.closest('[data-eliminar-perfil]');
+  if (!eliminar) return;
+  try {
+    const resultado = await post('/api/v1/acceso/perfiles/eliminar/', { clave: eliminar.dataset.eliminarPerfil });
+    toast(resultado.mensaje, 'success');
+    await loadUserProfiles(perfilesPagina, perfilesBusqueda);
+  } catch (error) {
+    toast(error.message, 'error');
   }
 });
 $('#perfiles-anterior').addEventListener('click', () => loadUserProfiles(perfilesPagina - 1, perfilesBusqueda));
@@ -822,17 +962,20 @@ async function loadCatalogoWebListado(pagina, busqueda, filtros = {}) {
       ver.href = enlace.href;
       ver.dataset.catalogoProducto = producto.public_id;
       ver.append(catalogoElemento('span', 'text-base', '◎'), document.createTextNode('Ver detalle'));
-      const descargas = catalogoElemento('details', 'relative');
-      const abrirDescargas = catalogoElemento('summary', 'inline-flex cursor-pointer list-none items-center gap-2 whitespace-nowrap rounded-full bg-primary px-4 py-2 text-sm font-semibold text-primary-contrast hover:bg-primary-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary');
-      abrirDescargas.append(catalogoElemento('span', 'text-base', '↓'), document.createTextNode('Descargar'));
-      const opciones = catalogoElemento('div', 'absolute bottom-full right-0 z-10 mb-2 min-w-48 overflow-hidden rounded-xl border border-line bg-surface p-1 shadow-elevated');
-      for (const [etiqueta, tamano] of [['Alta (original)', 'alta'], ['1500 × 1500', '1500'], ['800 × 800', '800']]) {
-        const opcion = catalogoElemento('a', 'block rounded-lg px-3 py-2.5 text-sm font-semibold text-ink no-underline hover:bg-surface-muted', etiqueta);
-        opcion.href = `/api/v1/catalogo/productos/${encodeURIComponent(producto.public_id)}/descargar/${tamano}/`;
-        opciones.append(opcion);
+      acciones.append(ver);
+      if (puedeDescargarCatalogo) {
+        const descargas = catalogoElemento('details', 'relative');
+        const abrirDescargas = catalogoElemento('summary', 'inline-flex cursor-pointer list-none items-center gap-2 whitespace-nowrap rounded-full bg-primary px-4 py-2 text-sm font-semibold text-primary-contrast hover:bg-primary-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary');
+        abrirDescargas.append(catalogoElemento('span', 'text-base', '↓'), document.createTextNode('Descargar'));
+        const opciones = catalogoElemento('div', 'absolute bottom-full right-0 z-10 mb-2 min-w-48 overflow-hidden rounded-xl border border-line bg-surface p-1 shadow-elevated');
+        for (const [etiqueta, tamano] of [['Alta (original)', 'alta'], ['1500 × 1500', '1500'], ['800 × 800', '800']]) {
+          const opcion = catalogoElemento('a', 'block rounded-lg px-3 py-2.5 text-sm font-semibold text-ink no-underline hover:bg-surface-muted', etiqueta);
+          opcion.href = `/api/v1/catalogo/productos/${encodeURIComponent(producto.public_id)}/descargar/${tamano}/`;
+          opciones.append(opcion);
+        }
+        descargas.append(abrirDescargas, opciones);
+        acciones.append(descargas);
       }
-      descargas.append(abrirDescargas, opciones);
-      acciones.append(ver, descargas);
       tarjeta.append(enlace, acciones);
       tarjetas.append(tarjeta);
     }
@@ -908,14 +1051,16 @@ async function loadCatalogoWebDetalle(publicId) {
       informacion.append(tarjetaAtributos);
     }
     informacion.append(ficha);
-    const descargasProducto = catalogoElemento('section', 'flex flex-wrap items-center gap-2 border-t border-line pt-3');
-    descargasProducto.append(catalogoElemento('span', 'mr-1 text-sm font-semibold text-ink', 'Descargar todas:'));
-    for (const [texto, tamano] of [['Alta calidad', 'alta'], ['1500 × 1500', '1500'], ['800 × 800', '800']]) {
-      const enlace = catalogoElemento('a', 'btn btn-primary btn-sm', `↓ ${texto}`);
-      enlace.href = `/api/v1/catalogo/productos/${encodeURIComponent(producto.public_id)}/descargar/${tamano}/`;
-      descargasProducto.append(enlace);
+    if (puedeDescargarCatalogo) {
+      const descargasProducto = catalogoElemento('section', 'flex flex-wrap items-center gap-2 border-t border-line pt-3');
+      descargasProducto.append(catalogoElemento('span', 'mr-1 text-sm font-semibold text-ink', 'Descargar todas:'));
+      for (const [texto, tamano] of [['Alta calidad', 'alta'], ['1500 × 1500', '1500'], ['800 × 800', '800']]) {
+        const enlace = catalogoElemento('a', 'btn btn-primary btn-sm', `↓ ${texto}`);
+        enlace.href = `/api/v1/catalogo/productos/${encodeURIComponent(producto.public_id)}/descargar/${tamano}/`;
+        descargasProducto.append(enlace);
+      }
+      informacion.append(descargasProducto);
     }
-    informacion.append(descargasProducto);
     if (producto.detalle_ws_actualizado_en) {
       const fechaActualizacion = new Date(producto.detalle_ws_actualizado_en);
       informacion.append(catalogoElemento('p', 'text-xs text-ink-subtle',
@@ -941,21 +1086,25 @@ async function loadCatalogoWebDetalle(publicId) {
       siguiente.setAttribute('aria-label', 'Imagen siguiente');
       marco.append(anterior, siguiente);
       const miniaturas = catalogoElemento('div', 'flex gap-2 overflow-x-auto pb-1');
-      const descargas = catalogoElemento('details', 'relative inline-block');
-      const menuDescargas = catalogoElemento('summary', 'inline-flex cursor-pointer list-none items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white');
-      menuDescargas.append(catalogoElemento('span', '', '↓'), document.createTextNode('Imagen activa'));
-      const opcionesImagenActiva = catalogoElemento('div', 'absolute bottom-full left-0 z-10 mb-2 min-w-48 overflow-hidden rounded-xl border border-line bg-surface p-1 shadow-elevated');
-      const enlacesDescarga = [
-        ['Alta calidad', 'original'],
-        ['1500 × 1500', 'resolucion_1500'],
-        ['800 × 800', 'resolucion_800'],
-      ].map(([texto, campo]) => {
-        const enlace = catalogoElemento('a', 'block rounded-lg px-3 py-2.5 text-sm font-semibold text-ink no-underline hover:bg-surface-muted', texto);
-        enlace.href = producto.imagenes[indiceActivo][campo];
-        opcionesImagenActiva.append(enlace);
-        return { enlace, campo };
-      });
-      descargas.append(menuDescargas, opcionesImagenActiva);
+      let enlacesDescarga = [];
+      if (puedeDescargarCatalogo) {
+        const descargas = catalogoElemento('details', 'relative inline-block');
+        const menuDescargas = catalogoElemento('summary', 'inline-flex cursor-pointer list-none items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white');
+        menuDescargas.append(catalogoElemento('span', '', '↓'), document.createTextNode('Imagen activa'));
+        const opcionesImagenActiva = catalogoElemento('div', 'absolute bottom-full left-0 z-10 mb-2 min-w-48 overflow-hidden rounded-xl border border-line bg-surface p-1 shadow-elevated');
+        enlacesDescarga = [
+          ['Alta calidad', 'original'],
+          ['1500 × 1500', 'resolucion_1500'],
+          ['800 × 800', 'resolucion_800'],
+        ].map(([texto, campo]) => {
+          const enlace = catalogoElemento('a', 'block rounded-lg px-3 py-2.5 text-sm font-semibold text-ink no-underline hover:bg-surface-muted', texto);
+          enlace.href = producto.imagenes[indiceActivo][campo];
+          opcionesImagenActiva.append(enlace);
+          return { enlace, campo };
+        });
+        descargas.append(menuDescargas, opcionesImagenActiva);
+        galeria.append(descargas);
+      }
       const leyenda = catalogoElemento('p', 'text-xs text-ink-muted');
       const botonesMiniatura = producto.imagenes.map((imagen, indice) => {
         const boton = catalogoElemento('button', 'shrink-0 rounded-lg border-2 border-transparent p-1 focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary');
@@ -981,7 +1130,7 @@ async function loadCatalogoWebDetalle(publicId) {
       anterior.addEventListener('click', () => actualizarImagenActiva(indiceActivo - 1));
       siguiente.addEventListener('click', () => actualizarImagenActiva(indiceActivo + 1));
       actualizarImagenActiva(indiceActivo);
-      galeria.append(marco, leyenda, miniaturas, descargas);
+      galeria.prepend(marco, leyenda, miniaturas);
     } else {
       galeria.append(catalogoElemento('p', 'text-sm text-ink-muted', 'No hay imágenes importadas para este producto.'));
     }

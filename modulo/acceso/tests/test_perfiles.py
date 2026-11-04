@@ -16,6 +16,7 @@ class ConfigurarPerfilesTests(TestCase):
             ('informat', 'consultar_productos_inet'),
             ('informat', 'administrar_token'),
             ('catalogo', 'ver_catalogo'),
+            ('catalogo', 'descargar_catalogo'),
         })
 
     def test_actualiza_permisos_del_grupo_de_forma_idempotente(self) -> None:
@@ -27,4 +28,4 @@ class ConfigurarPerfilesTests(TestCase):
         call_command('configurar_perfiles')
         call_command('configurar_perfiles')
 
-        self.assertEqual(grupo.permissions.count(), 6)
+        self.assertEqual(grupo.permissions.count(), 7)

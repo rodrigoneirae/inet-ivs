@@ -9,13 +9,13 @@ Para crear el grupo inicial de administradores, después de aplicar migraciones:
 python manage.py configurar_perfiles
 ```
 
-El grupo `Administrador` recibe permisos para pedidos (consulta y acciones),
-stock, catálogo I-NET, administración del token y catálogo web. Asigna al grupo
-solo las cuentas autorizadas desde el nuevo módulo `/usuarios/`, disponible
-únicamente para superusuarios. El módulo permite buscar cuentas y asignar o
-retirar el grupo; el endpoint vuelve a comprobar el superusuario y registra los
-cambios. Ser miembro del grupo Administrador no concede acceso a Django Admin:
-para eso se requiere además `is_staff`; las cuentas `is_superuser` conservan el
+El grupo `Administrador` recibe todos los permisos operativos disponibles.
+Desde `/usuarios/`, los superusuarios pueden crear perfiles personalizados
+seleccionando permisos concretos, editarlos, eliminarlos si no están asignados,
+y asignar varios perfiles a una cuenta. El módulo y cada endpoint verifican
+`is_superuser`; los cambios se registran sin incluir nombres de usuario en los
+logs. Ser miembro de un perfil no concede acceso a Django Admin: para eso se
+requiere además `is_staff`; las cuentas `is_superuser` conservan el
 comportamiento estándar de Django.
 
 Los usuarios no reciben permisos por defecto. Antes de producción, revisa y

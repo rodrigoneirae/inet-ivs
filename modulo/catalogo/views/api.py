@@ -6,6 +6,7 @@ from zipfile import ZIP_DEFLATED, ZipFile
 from django import forms
 from django.conf import settings
 from django.contrib.auth.decorators import login_required, permission_required
+from django.core.exceptions import PermissionDenied
 from django.core.paginator import Paginator
 from django.db.models import Count, Q
 from django.http import FileResponse, Http404, HttpRequest, JsonResponse
@@ -119,9 +120,11 @@ def detalle_producto(request: HttpRequest, public_id: UUID) -> JsonResponse:
             'nombre': imagen.nombre_origen,
             'preview': _url_imagen(producto.public_id, imagen.numero, 'preview'),
             'miniatura': _url_imagen(producto.public_id, imagen.numero, 'thumbnail'),
-            'original': _url_imagen(producto.public_id, imagen.numero, 'original'),
-            'resolucion_1500': _url_imagen(producto.public_id, imagen.numero, '1500'),
-            'resolucion_800': _url_imagen(producto.public_id, imagen.numero, '800'),
+            **({
+                'original': _url_imagen(producto.public_id, imagen.numero, 'original'),
+                'resolucion_1500': _url_imagen(producto.public_id, imagen.numero, '1500'),
+                'resolucion_800': _url_imagen(producto.public_id, imagen.numero, '800'),
+            } if request.user.has_perm('catalogo.descargar_catalogo') else {}),
         } for imagen in producto.imagenes.all()],
     })
 
@@ -133,6 +136,8 @@ def detalle_producto(request: HttpRequest, public_id: UUID) -> JsonResponse:
 def imagen(request: HttpRequest, public_id: UUID, numero: int, tamano: str) -> FileResponse:
     if tamano not in {'thumbnail', 'preview', 'original', '1500', '800'}:
         raise Http404
+    if tamano not in {'thumbnail', 'preview'} and not request.user.has_perm('catalogo.descargar_catalogo'):
+        raise PermissionDenied
     registro = get_object_or_404(ImagenProducto, producto__public_id=public_id, numero=numero)
     campo = {'thumbnail': 'resolucion_400', 'preview': 'resolucion_800', 'original': 'original', '1500': 'resolucion_1500',
              '800': 'resolucion_800'}[tamano]
@@ -148,7 +153,7 @@ def imagen(request: HttpRequest, public_id: UUID, numero: int, tamano: str) -> F
 
 
 @login_required
-@permission_required('catalogo.ver_catalogo', raise_exception=True)
+@permission_required(('catalogo.ver_catalogo', 'catalogo.descargar_catalogo'), raise_exception=True)
 @require_GET
 @never_cache
 def descargar_imagenes_producto(request: HttpRequest, public_id: UUID, tamano: str) -> FileResponse:

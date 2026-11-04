@@ -26,7 +26,8 @@ class CatalogoApiTests(TestCase):
         usuario_modelo = get_user_model()
         self.usuario = usuario_modelo.objects.create_user(username='catalogo-test', password='test-pass')
         permiso = Permission.objects.get(codename='ver_catalogo', content_type__app_label='catalogo')
-        self.usuario.user_permissions.add(permiso)
+        permiso_descarga = Permission.objects.get(codename='descargar_catalogo', content_type__app_label='catalogo')
+        self.usuario.user_permissions.add(permiso, permiso_descarga)
         self.producto = Producto.objects.create(
             sku='16060170', descripcion='Copa de prueba', descripcion_corta='Copa', sincronizado_en=timezone.now(),
         )
@@ -110,6 +111,41 @@ class CatalogoApiTests(TestCase):
         usuario_sin_permiso = get_user_model().objects.create_user(username='sin-permiso', password='test-pass')
         self.client.force_login(usuario_sin_permiso)
         self.assertEqual(self.client.get(reverse('catalogo:productos')).status_code, 403)
+
+    def test_consultar_catalogo_no_concede_descarga(self) -> None:
+        permiso_descarga = Permission.objects.get(codename='descargar_catalogo', content_type__app_label='catalogo')
+        self.usuario.user_permissions.remove(permiso_descarga)
+
+        self.assertEqual(self.client.get(reverse('catalogo:productos')).status_code, 200)
+        self.assertEqual(self.client.get(reverse('catalogo:facetas_atributos')).status_code, 200)
+        detalle = self.client.get(reverse('catalogo:detalle_producto', kwargs={'public_id': self.producto.public_id}))
+        self.assertEqual(detalle.status_code, 200)
+        imagen = detalle.json()['imagenes'][0]
+        self.assertIn('preview', imagen)
+        self.assertNotIn('original', imagen)
+
+        for tamano in ('original', '1500', '800'):
+            with self.subTest(tamano=tamano):
+                respuesta = self.client.get(reverse('catalogo:imagen', kwargs={
+                    'public_id': self.producto.public_id,
+                    'numero': 1,
+                    'tamano': tamano,
+                }))
+                self.assertEqual(respuesta.status_code, 403)
+        for tamano in ('alta', '1500', '800'):
+            with self.subTest(zip=tamano):
+                respuesta = self.client.get(reverse('catalogo:descargar_imagenes_producto', kwargs={
+                    'public_id': self.producto.public_id,
+                    'tamano': tamano,
+                }))
+                self.assertEqual(respuesta.status_code, 403)
+
+        miniatura = self.client.get(reverse('catalogo:imagen', kwargs={
+            'public_id': self.producto.public_id,
+            'numero': 1,
+            'tamano': 'thumbnail',
+        }))
+        self.assertEqual(miniatura.status_code, 200)
 
     @patch('modulo.catalogo.services.detalle.consultar_producto_venta')
     def test_detalle_ws_se_cachea_y_se_reutiliza(self, consulta: Mock) -> None:

@@ -334,12 +334,37 @@ const apiBase = (import.meta.env.PUBLIC_API_BASE ?? '').replace(/\/$/, '');
                 <div>
                   <p class="text-xs font-semibold uppercase tracking-wider text-primary">Seguridad</p>
                   <h2 class="mt-1 text-2xl font-bold tracking-tight text-ink">Perfiles de usuario</h2>
-                  <p class="mt-1 text-sm text-ink-muted">Asigna el perfil Administrador a las cuentas autorizadas.</p>
+                  <p class="mt-1 text-sm text-ink-muted">Crea perfiles con permisos específicos y asígnalos a las cuentas.</p>
                 </div>
                 <span id="perfiles-total" class="chip chip-neutral" aria-live="polite"></span>
               </div>
               <div id="perfiles-sin-configurar" class="mt-5 rounded-xl border border-warning/30 bg-warning-soft p-4 text-sm text-warning-ink" hidden>
                 El grupo Administrador aún no está configurado. Ejecuta <code>python manage.py configurar_perfiles</code>.
+              </div>
+              <div class="mt-5 grid items-start gap-5 xl:grid-cols-2">
+                <form id="perfil-editor" class="card space-y-4 p-4 md:p-5">
+                  <input type="hidden" name="nombre_original" />
+                  <div>
+                    <h3 id="perfil-editor-titulo" class="card-title">Crear perfil</h3>
+                    <p class="card-subtitle mt-1">Selecciona únicamente las funciones necesarias.</p>
+                  </div>
+                  <div>
+                    <label class="field-label" for="perfil-nombre">Nombre del perfil</label>
+                    <input id="perfil-nombre" name="nombre" class="field" maxlength="80" required />
+                  </div>
+                  <fieldset>
+                    <legend class="field-label">Permisos disponibles</legend>
+                    <div id="perfil-permisos" class="mt-2 grid gap-2 sm:grid-cols-2"></div>
+                  </fieldset>
+                  <div class="flex flex-wrap gap-2">
+                    <button id="perfil-guardar" class="btn btn-primary" type="submit">Crear perfil</button>
+                    <button id="perfil-cancelar" class="btn btn-secondary" type="button" hidden>Cancelar edición</button>
+                  </div>
+                </form>
+                <section class="card p-4 md:p-5" aria-labelledby="perfiles-lista-titulo">
+                  <h3 id="perfiles-lista-titulo" class="card-title">Perfiles disponibles</h3>
+                  <div id="perfiles-lista" class="mt-3 space-y-3"></div>
+                </section>
               </div>
               <form id="perfiles-busqueda" class="mt-5 flex max-w-xl gap-2" role="search">
                 <label class="sr-only" for="perfiles-filtro">Buscar usuario</label>
@@ -350,7 +375,7 @@ const apiBase = (import.meta.env.PUBLIC_API_BASE ?? '').replace(/\/$/, '');
               <div class="mt-3 overflow-x-auto rounded-xl border border-line bg-surface">
                 <table class="w-full min-w-[40rem] text-left text-sm">
                   <thead class="bg-surface-muted text-xs uppercase tracking-wide text-ink-muted">
-                    <tr><th scope="col" class="px-4 py-3">Usuario</th><th scope="col" class="px-4 py-3">Estado</th><th scope="col" class="px-4 py-3">Perfil</th><th scope="col" class="px-4 py-3 text-right">Acción</th></tr>
+                    <tr><th scope="col" class="px-4 py-3">Usuario</th><th scope="col" class="px-4 py-3">Estado</th><th scope="col" class="px-4 py-3">Perfiles asignados</th><th scope="col" class="px-4 py-3 text-right">Acción</th></tr>
                   </thead>
                   <tbody id="perfiles-usuarios" class="divide-y divide-line"></tbody>
                 </table>

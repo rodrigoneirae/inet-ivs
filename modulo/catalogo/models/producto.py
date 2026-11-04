@@ -18,7 +18,10 @@ class Producto(models.Model):
 
     class Meta:
         ordering = ['sku']
-        permissions = [('ver_catalogo', 'Puede consultar el catálogo web')]
+        permissions = [
+            ('ver_catalogo', 'Puede consultar el catálogo web'),
+            ('descargar_catalogo', 'Puede descargar imágenes del catálogo'),
+        ]
 
     def __str__(self) -> str:
         return f'{self.sku} - {self.descripcion_corta}'

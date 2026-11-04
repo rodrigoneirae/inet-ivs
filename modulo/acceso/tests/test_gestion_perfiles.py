@@ -29,11 +29,12 @@ class GestionPerfilesTests(TestCase):
         self.assertEqual(lista.status_code, 200)
         self.assertTrue(lista.json()['grupo_configurado'])
         self.assertEqual(lista.json()['usuarios'][0]['username'], 'operador')
+        self.assertEqual(lista.json()['usuarios'][0]['perfiles'], [])
         self.assertNotIn('id', lista.json()['usuarios'][0])
 
         asignar = self.client.post('/api/v1/acceso/perfiles/usuario/', {
             'username': self.usuario.username,
-            'administrador': 'true',
+            'perfiles': ['Administrador'],
         })
         self.assertEqual(asignar.status_code, 200)
         grupo = Group.objects.get(name='Administrador')
@@ -41,7 +42,7 @@ class GestionPerfilesTests(TestCase):
 
         retirar = self.client.post('/api/v1/acceso/perfiles/usuario/', {
             'username': self.usuario.username,
-            'administrador': '',
+            'perfiles': [],
         })
         self.assertEqual(retirar.status_code, 200)
         self.assertFalse(self.usuario.groups.filter(pk=grupo.pk).exists())
@@ -50,6 +51,46 @@ class GestionPerfilesTests(TestCase):
         self.client.force_login(self.superusuario)
         respuesta = self.client.post('/api/v1/acceso/perfiles/usuario/', {
             'username': self.superusuario.username,
-            'administrador': '',
+            'perfiles': [],
         })
         self.assertEqual(respuesta.status_code, 400)
+
+    def test_superusuario_crea_asigna_y_elimina_perfil_personalizado(self) -> None:
+        self.client.force_login(self.superusuario)
+        crear = self.client.post('/api/v1/acceso/perfiles/guardar/', {
+            'nombre': 'Consulta catálogo',
+            'permisos': ['catalogo.ver_catalogo'],
+        })
+        self.assertEqual(crear.status_code, 200)
+        perfil = next(
+            perfil for perfil in self.client.get('/api/v1/acceso/perfiles/').json()['perfiles']
+            if perfil['nombre'] == 'Consulta catálogo'
+        )
+        self.assertEqual(perfil['permisos'], ['catalogo.ver_catalogo'])
+
+        crear_descargas = self.client.post('/api/v1/acceso/perfiles/guardar/', {
+            'nombre': 'Descargas catálogo',
+            'permisos': ['catalogo.ver_catalogo', 'catalogo.descargar_catalogo'],
+        })
+        self.assertEqual(crear_descargas.status_code, 200)
+        permiso_sin_lectura = self.client.post('/api/v1/acceso/perfiles/guardar/', {
+            'nombre': 'Descarga inválida',
+            'permisos': ['catalogo.descargar_catalogo'],
+        })
+        self.assertEqual(permiso_sin_lectura.status_code, 400)
+
+        asignar = self.client.post('/api/v1/acceso/perfiles/usuario/', {
+            'username': self.usuario.username,
+            'perfiles': [perfil['clave']],
+        })
+        self.assertEqual(asignar.status_code, 200)
+        self.assertTrue(self.usuario.has_perm('catalogo.ver_catalogo'))
+        no_eliminar_asignado = self.client.post('/api/v1/acceso/perfiles/eliminar/', {'clave': perfil['clave']})
+        self.assertEqual(no_eliminar_asignado.status_code, 409)
+
+        self.client.post('/api/v1/acceso/perfiles/usuario/', {
+            'username': self.usuario.username,
+            'perfiles': [],
+        })
+        eliminar = self.client.post('/api/v1/acceso/perfiles/eliminar/', {'clave': perfil['clave']})
+        self.assertEqual(eliminar.status_code, 200)

@@ -9,11 +9,12 @@ PERMISOS_ADMINISTRADOR = (
     ('informat', 'consultar_productos_inet'),
     ('informat', 'administrar_token'),
     ('catalogo', 'ver_catalogo'),
+    ('catalogo', 'descargar_catalogo'),
 )
 
 
 class Command(BaseCommand):
-    help = 'Crea o actualiza el grupo Administrador con los permisos operativos de la plataforma.'
+    help = 'Crea o actualiza el grupo Administrador con todos los permisos operativos.'
 
     def handle(self, *args: object, **options: object) -> None:
         permisos: list[Permission] = []
@@ -32,5 +33,5 @@ class Command(BaseCommand):
         grupo.permissions.set(permisos)
         accion = 'Creado' if creado else 'Actualizado'
         self.stdout.write(self.style.SUCCESS(
-            f'{accion} el grupo Administrador con {len(permisos)} permisos de módulos.'
+            f'{accion} el grupo Administrador con {len(permisos)} permisos operativos.'
         ))
