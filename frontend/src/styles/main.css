@@ -295,6 +295,18 @@
     @apply border-primary/25 bg-primary-soft text-primary-ink;
   }
 
+  .user-tab {
+    @apply -mb-px inline-flex shrink-0 items-center gap-2 border-b-2 border-transparent px-4 py-3 text-sm font-semibold text-ink-muted transition-colors hover:border-line hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary;
+  }
+
+  .user-tab.is-active {
+    @apply border-primary text-primary;
+  }
+
+  .user-tab-count {
+    @apply rounded-full bg-surface-muted px-2 py-0.5 text-xs font-medium text-ink-muted;
+  }
+
   .nav-link {
     @apply flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-ink-muted transition-colors hover:bg-surface-muted hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary;
   }

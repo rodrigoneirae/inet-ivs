@@ -215,6 +215,7 @@ function displaySession(data) {
       $('#user-profiles').hidden = false;
       $('#page-title').textContent = 'Perfiles de usuario';
       setCurrentNav('#nav-users');
+      selectUsersTab('usuarios');
       loadUserProfiles(1, $('#perfiles-filtro').value.trim());
     } else if (rutaActual.startsWith('/catalogo/') && data.puede_ver_catalogo_web) {
       $('#home').hidden = true;
@@ -563,6 +564,34 @@ function renderProfilesList() {
   }
 }
 
+function selectUsersTab(tabName, focus = false) {
+  const mostrarPerfiles = tabName === 'perfiles';
+  const tabPerfiles = $('#tab-perfiles');
+  const tabUsuarios = $('#tab-usuarios');
+  tabPerfiles.classList.toggle('is-active', mostrarPerfiles);
+  tabUsuarios.classList.toggle('is-active', !mostrarPerfiles);
+  tabPerfiles.setAttribute('aria-selected', String(mostrarPerfiles));
+  tabUsuarios.setAttribute('aria-selected', String(!mostrarPerfiles));
+  tabPerfiles.tabIndex = mostrarPerfiles ? 0 : -1;
+  tabUsuarios.tabIndex = mostrarPerfiles ? -1 : 0;
+  $('#panel-perfiles').hidden = !mostrarPerfiles;
+  $('#panel-usuarios').hidden = mostrarPerfiles;
+  if (focus) (mostrarPerfiles ? tabPerfiles : tabUsuarios).focus();
+}
+
+$('#tab-perfiles').addEventListener('click', () => selectUsersTab('perfiles'));
+$('#tab-usuarios').addEventListener('click', () => selectUsersTab('usuarios'));
+for (const [selector, nombre] of [['#tab-usuarios', 'usuarios'], ['#tab-perfiles', 'perfiles']]) {
+  $(selector).addEventListener('keydown', event => {
+    if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
+    event.preventDefault();
+    const destino = event.key === 'Home' ? 'usuarios'
+      : event.key === 'End' ? 'perfiles'
+        : nombre === 'perfiles' ? 'usuarios' : 'perfiles';
+    selectUsersTab(destino, true);
+  });
+}
+
 async function loadUserProfiles(pagina = 1, busqueda = '') {
   const solicitud = ++perfilesRequest;
   $('#perfiles-estado').textContent = 'Cargando usuarios…';
@@ -580,6 +609,8 @@ async function loadUserProfiles(pagina = 1, busqueda = '') {
     renderProfilesList();
     renderPermissionChoices();
     $('#perfiles-total').textContent = `${datos.total} usuarios`;
+    $('#tab-usuarios-count').textContent = datos.total;
+    $('#tab-perfiles-count').textContent = datos.perfiles.length;
     $('#perfiles-sin-configurar').hidden = datos.grupo_configurado;
     const filas = $('#perfiles-usuarios');
     filas.replaceChildren();
@@ -655,8 +686,10 @@ $('#perfiles-usuarios').addEventListener('submit', async event => {
   const formulario = event.target.closest('form[data-perfil-usuario]');
   if (!formulario) return;
   event.preventDefault();
-  const guardar = formulario.querySelector('button[type="submit"]');
-  guardar.disabled = true;
+  const guardar = event.submitter instanceof HTMLButtonElement
+    ? event.submitter
+    : document.querySelector(`button[form="${formulario.id}"]`);
+  if (guardar) guardar.disabled = true;
   try {
     const datos = new FormData(formulario);
     const actualizado = await post('/api/v1/acceso/perfiles/usuario/', {
@@ -668,7 +701,7 @@ $('#perfiles-usuarios').addEventListener('submit', async event => {
   } catch (error) {
     toast(error.message, 'error');
   } finally {
-    guardar.disabled = false;
+    if (guardar) guardar.disabled = false;
   }
 });
 $('#perfil-editor').addEventListener('submit', async event => {

@@ -165,10 +165,6 @@ const apiBase = (import.meta.env.PUBLIC_API_BASE ?? '').replace(/\/$/, '');
               <svg class="nav-icon size-5 shrink-0" viewBox="0 0 24 24"><use href="#icon-pedidos"></use></svg>
               <span class="nav-label">Catálogo</span>
             </button>
-            <button id="nav-users" class="nav-link" type="button" hidden>
-              <svg class="nav-icon size-5 shrink-0" viewBox="0 0 24 24"><use href="#icon-candado"></use></svg>
-              <span class="nav-label">Perfiles de usuario</span>
-            </button>
           </nav>
 
           <div class="border-t border-line p-3">
@@ -193,6 +189,11 @@ const apiBase = (import.meta.env.PUBLIC_API_BASE ?? '').replace(/\/$/, '');
               <h1 id="page-title" class="truncate text-sm font-semibold tracking-tight text-ink md:text-base">Inicio</h1>
               <p class="hidden truncate text-xs text-ink-subtle md:block">INET IVS · Panel operativo</p>
             </div>
+            <button id="nav-users" class="btn btn-secondary btn-sm shrink-0" type="button" hidden>
+              <svg class="size-4" viewBox="0 0 24 24"><use href="#icon-candado"></use></svg>
+              <span class="hidden sm:inline">Usuarios y perfiles</span>
+              <span class="sm:hidden">Usuarios</span>
+            </button>
             <button id="theme-toggle" class="icon-btn" type="button" aria-label="Cambiar entre tema claro y oscuro">
               <svg class="size-5 dark:hidden" viewBox="0 0 24 24"><use href="#icon-sol"></use></svg>
               <svg class="hidden size-5 dark:block" viewBox="0 0 24 24"><use href="#icon-luna"></use></svg>
@@ -336,12 +337,23 @@ const apiBase = (import.meta.env.PUBLIC_API_BASE ?? '').replace(/\/$/, '');
                   <h2 class="mt-1 text-2xl font-bold tracking-tight text-ink">Perfiles de usuario</h2>
                   <p class="mt-1 text-sm text-ink-muted">Crea perfiles con permisos específicos y asígnalos a las cuentas.</p>
                 </div>
-                <span id="perfiles-total" class="chip chip-neutral" aria-live="polite"></span>
               </div>
               <div id="perfiles-sin-configurar" class="mt-5 rounded-xl border border-warning/30 bg-warning-soft p-4 text-sm text-warning-ink" hidden>
                 El grupo Administrador aún no está configurado. Ejecuta <code>python manage.py configurar_perfiles</code>.
               </div>
-              <div class="mt-5 grid items-start gap-5 xl:grid-cols-2">
+              <div class="mt-6 border-b border-line">
+                <div class="flex gap-2" role="tablist" aria-label="Administración de acceso">
+                  <button id="tab-usuarios" class="user-tab is-active" type="button" role="tab" aria-selected="true" aria-controls="panel-usuarios" tabindex="0">
+                    Usuarios <span id="tab-usuarios-count" class="user-tab-count"></span>
+                  </button>
+                  <button id="tab-perfiles" class="user-tab" type="button" role="tab" aria-selected="false" aria-controls="panel-perfiles" tabindex="-1">
+                    Perfiles <span id="tab-perfiles-count" class="user-tab-count"></span>
+                  </button>
+                </div>
+              </div>
+
+              <div id="panel-perfiles" class="mt-5" role="tabpanel" aria-labelledby="tab-perfiles" hidden>
+              <div class="grid items-start gap-5 xl:grid-cols-2">
                 <form id="perfil-editor" class="card space-y-4 p-4 md:p-5">
                   <input type="hidden" name="nombre_original" />
                   <div>
@@ -366,6 +378,16 @@ const apiBase = (import.meta.env.PUBLIC_API_BASE ?? '').replace(/\/$/, '');
                   <div id="perfiles-lista" class="mt-3 space-y-3"></div>
                 </section>
               </div>
+              </div>
+
+              <div id="panel-usuarios" class="mt-5" role="tabpanel" aria-labelledby="tab-usuarios">
+              <div class="mb-4 flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <h3 class="text-base font-semibold text-ink">Asignación de perfiles</h3>
+                  <p class="mt-1 text-sm text-ink-muted">Selecciona uno o más perfiles para cada usuario y guarda los cambios.</p>
+                </div>
+                <span id="perfiles-total" class="chip chip-neutral" aria-live="polite"></span>
+              </div>
               <form id="perfiles-busqueda" class="mt-5 flex max-w-xl gap-2" role="search">
                 <label class="sr-only" for="perfiles-filtro">Buscar usuario</label>
                 <input id="perfiles-filtro" name="busqueda" class="field" maxlength="100" placeholder="Buscar por nombre de usuario" />
@@ -385,6 +407,7 @@ const apiBase = (import.meta.env.PUBLIC_API_BASE ?? '').replace(/\/$/, '');
                 <span id="perfiles-pagina" class="text-sm text-ink-muted"></span>
                 <button id="perfiles-siguiente" class="btn btn-secondary" type="button">Siguiente</button>
               </nav>
+              </div>
             </section>
 
             <section id="orders" class="w-full px-4 py-6 md:px-8 md:py-10" hidden>
