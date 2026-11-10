@@ -180,7 +180,7 @@ function initials(name) {
 }
 
 function setCurrentNav(current) {
-  for (const selector of ['#nav-home', '#nav-orders', '#nav-stock', '#nav-catalogo', '#nav-users']) {
+  for (const selector of ['#nav-home', '#nav-orders', '#nav-stock', '#nav-catalogo', '#nav-configuracion']) {
     const element = $(selector);
     if (!element) continue;
     if (selector === current) element.setAttribute('aria-current', 'page');
@@ -202,17 +202,30 @@ function displaySession(data) {
     $('#nav-orders').hidden = !data.puede_ver_pedidos;
     $('#nav-stock').hidden = !data.puede_ver_stock;
     $('#nav-catalogo').hidden = !data.puede_ver_catalogo_web;
-    $('#nav-users').hidden = !data.puede_configurar_usuarios;
+    const puedeConfigurar = Boolean(data.puede_configurar_usuarios || data.puede_administrar_token);
+    $('#nav-configuracion').hidden = !puedeConfigurar;
+    $('#config-informat').hidden = !data.puede_administrar_token;
+    $('#config-acceso').hidden = !data.puede_configurar_usuarios;
     const hero = $('#hero-orders');
     if (hero) hero.hidden = !data.puede_ver_pedidos;
     $('#sync').hidden = !data.puede_sincronizar;
     const rutaActual = window.location.pathname || '/';
-    if (rutaActual === '/usuarios/' && data.puede_configurar_usuarios) {
+    if (rutaActual === '/configuracion/' && puedeConfigurar) {
+      $('#home').hidden = true;
+      $('#stock').hidden = true;
+      $('#orders').hidden = true;
+      $('#catalogo-web').hidden = true;
+      $('#user-profiles').hidden = true;
+      $('#configuracion').hidden = false;
+      $('#page-title').textContent = 'Configuración';
+      setCurrentNav('#nav-configuracion');
+    } else if (rutaActual === '/usuarios/' && data.puede_configurar_usuarios) {
       $('#home').hidden = true;
       $('#stock').hidden = true;
       $('#orders').hidden = true;
       $('#catalogo-web').hidden = true;
       $('#user-profiles').hidden = false;
+      $('#configuracion').hidden = true;
       $('#page-title').textContent = 'Perfiles de usuario';
       setCurrentNav('#nav-users');
       selectUsersTab('usuarios');
@@ -231,6 +244,7 @@ function displaySession(data) {
     } else if (rutaActual === '/stock/' && data.puede_ver_stock) {
       $('#home').hidden = true;
       $('#stock').hidden = false;
+      $('#configuracion').hidden = true;
       $('#page-title').textContent = 'Stock Informat';
       setCurrentNav('#nav-stock');
       $('#catalogo').hidden = !data.puede_ver_catalogo;
@@ -239,6 +253,7 @@ function displaySession(data) {
     } else if (rutaActual === '/pedidos/' && data.puede_ver_pedidos) {
       $('#home').hidden = true;
       $('#orders').hidden = false;
+      $('#configuracion').hidden = true;
       $('#page-title').textContent = 'Pedidos AnyMarket';
       setCurrentNav('#nav-orders');
       loadOrders();
@@ -505,7 +520,16 @@ $('#nav-home').addEventListener('click', () => { window.location.assign('/'); })
 $('#nav-orders').addEventListener('click', () => { window.location.assign('/pedidos/'); });
 $('#nav-stock').addEventListener('click', () => { window.location.assign('/stock/'); });
 $('#nav-catalogo').addEventListener('click', () => { window.location.assign('/catalogo/'); });
-$('#nav-users').addEventListener('click', () => { window.location.assign('/usuarios/'); });
+$('#nav-configuracion').addEventListener('click', () => { window.location.assign('/configuracion/'); });
+$('#config-informat-abrir').addEventListener('click', () => {
+  $('#configuracion-inicio').hidden = true;
+  $('#configuracion-informat-detalle').hidden = false;
+  $('#token-valor').focus();
+});
+$('#config-informat-volver').addEventListener('click', () => {
+  $('#configuracion-informat-detalle').hidden = true;
+  $('#configuracion-inicio').hidden = false;
+});
 
 function renderPermissionChoices(seleccionados = []) {
   const opciones = $('#perfil-permisos');

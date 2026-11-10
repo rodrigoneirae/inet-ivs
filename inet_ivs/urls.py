@@ -31,6 +31,7 @@ urlpatterns = [
     path('catalogo/producto/<uuid:public_id>/', views.inicio, name='catalogo_detalle'),
     path('catalogo/', views.inicio, name='catalogo'),
     path('usuarios/', views.configurar_usuarios, name='configurar_usuarios'),
+    path('configuracion/', views.configuracion, name='configuracion'),
     path('login/', RedirectView.as_view(url='/', permanent=False), name='login'),
     path('anymarket/', include('modulo.anymarket.urls')),
 ]

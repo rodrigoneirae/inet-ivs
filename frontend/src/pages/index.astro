@@ -189,10 +189,9 @@ const apiBase = (import.meta.env.PUBLIC_API_BASE ?? '').replace(/\/$/, '');
               <h1 id="page-title" class="truncate text-sm font-semibold tracking-tight text-ink md:text-base">Inicio</h1>
               <p class="hidden truncate text-xs text-ink-subtle md:block">INET IVS · Panel operativo</p>
             </div>
-            <button id="nav-users" class="btn btn-secondary btn-sm shrink-0" type="button" hidden>
+            <button id="nav-configuracion" class="btn btn-secondary btn-sm shrink-0" type="button" hidden>
               <svg class="size-4" viewBox="0 0 24 24"><use href="#icon-candado"></use></svg>
-              <span class="hidden sm:inline">Usuarios y perfiles</span>
-              <span class="sm:hidden">Usuarios</span>
+              <span>Configuración</span>
             </button>
             <button id="theme-toggle" class="icon-btn" type="button" aria-label="Cambiar entre tema claro y oscuro">
               <svg class="size-5 dark:hidden" viewBox="0 0 24 24"><use href="#icon-sol"></use></svg>
@@ -202,6 +201,43 @@ const apiBase = (import.meta.env.PUBLIC_API_BASE ?? '').replace(/\/$/, '');
           </header>
 
           <main id="contenido" class="flex-1">
+            <section id="configuracion" class="mx-auto w-full max-w-6xl px-4 py-6 md:px-8 md:py-10" hidden>
+              <div id="configuracion-inicio">
+                <p class="text-sm text-ink-muted">Ajustes de integraciones y administración de la plataforma.</p>
+                <div class="mt-6 grid max-w-4xl gap-3 sm:grid-cols-2">
+                  <article id="config-informat" class="card p-4" hidden>
+                    <p class="text-xs font-semibold uppercase tracking-wide text-ink-subtle">Integración</p>
+                    <div class="mt-2 flex items-center justify-between gap-3">
+                      <div class="min-w-0">
+                        <h2 class="font-semibold text-ink">Informat</h2>
+                        <p class="mt-1 text-sm text-ink-muted">Token de acceso compartido.</p>
+                      </div>
+                      <button id="config-informat-abrir" class="btn btn-secondary btn-sm shrink-0" type="button">Administrar</button>
+                    </div>
+                  </article>
+                  <article id="config-acceso" class="card p-4" hidden>
+                    <p class="text-xs font-semibold uppercase tracking-wide text-ink-subtle">Administración</p>
+                    <div class="mt-2 flex items-center justify-between gap-3">
+                      <div class="min-w-0">
+                        <h2 class="font-semibold text-ink">Usuarios y perfiles</h2>
+                        <p class="mt-1 text-sm text-ink-muted">Usuarios, perfiles y permisos.</p>
+                      </div>
+                      <a class="btn btn-secondary btn-sm shrink-0" href="/usuarios/">Administrar</a>
+                    </div>
+                  </article>
+                </div>
+              </div>
+              <section id="configuracion-informat-detalle" class="card max-w-2xl p-5" hidden>
+                <button id="config-informat-volver" class="btn btn-secondary btn-sm" type="button">← Configuración</button>
+                <h2 class="mt-5 text-xl font-semibold text-ink">Informat</h2>
+                <p class="mt-1 text-sm text-ink-muted">Actualiza el token compartido utilizado por los servicios de Informat.</p>
+                <form id="token-informat-form" class="mt-5 grid gap-4 sm:grid-cols-[1fr_12rem]" autocomplete="off">
+                  <div class="sm:col-span-2"><label class="field-label" for="token-valor">Token de Informat</label><input id="token-valor" name="token" type="password" class="field" maxlength="512" autocomplete="off" required /></div>
+                  <div><label class="field-label" for="token-minutos">Vigencia restante (minutos)</label><input id="token-minutos" name="minutos_vigencia" type="number" class="field" min="1" max="1440" required /></div>
+                  <button class="btn btn-primary self-end" type="submit">Actualizar token</button>
+                </form>
+              </section>
+            </section>
             <section id="home" class="mx-auto max-w-6xl px-4 py-6 md:px-8 md:py-10">
               <div class="hero-panel relative overflow-hidden rounded-2xl p-6 text-white shadow-elevated md:p-10">
                 <div class="relative max-w-2xl">
@@ -248,15 +284,6 @@ const apiBase = (import.meta.env.PUBLIC_API_BASE ?? '').replace(/\/$/, '');
               <p class="text-xs font-semibold uppercase tracking-wider text-primary">Módulo Informat</p>
               <h2 class="mt-1 text-2xl font-bold tracking-tight text-ink">Consulta de stock</h2>
               <p class="mt-1 text-sm text-ink-muted">Busca productos y consulta su stock por código y bodega.</p>
-              <section id="token-informat" class="card mt-6 p-5" hidden>
-                <h3 class="card-title">Actualizar token Informat</h3>
-                <p class="card-subtitle">Ingresa un token vigente y el tiempo restante estimado. El token no se volverá a mostrar.</p>
-                <form id="token-informat-form" class="mt-4 grid items-end gap-4 md:grid-cols-[1fr_12rem_auto]" autocomplete="off">
-                  <div><label class="field-label" for="token-valor">Token de productos</label><input id="token-valor" name="token" type="password" class="field" maxlength="512" autocomplete="off" required /></div>
-                  <div><label class="field-label" for="token-minutos">Vigencia restante (minutos)</label><input id="token-minutos" name="minutos_vigencia" type="number" class="field" min="1" max="1440" required /></div>
-                  <button class="btn btn-primary" type="submit">Actualizar token</button>
-                </form>
-              </section>
               <div id="catalogo" class="card mt-6 p-5" hidden>
                 <h3 class="card-title">Catálogo de productos</h3>
                 <form id="catalogo-filtros" class="mt-4 flex flex-wrap items-end gap-3">

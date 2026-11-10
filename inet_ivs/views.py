@@ -40,3 +40,12 @@ def configurar_usuarios(request: HttpRequest) -> HttpResponse:
     if not request.user.is_superuser:
         raise PermissionDenied
     return inicio(request)
+
+
+@login_required
+@require_safe
+@never_cache
+def configuracion(request: HttpRequest) -> HttpResponse:
+    if not (request.user.is_superuser or request.user.has_perm('informat.administrar_token')):
+        raise PermissionDenied
+    return inicio(request)
