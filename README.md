@@ -139,7 +139,15 @@ Para respaldo manual, asigna a un usuario el permiso **Puede administrar el toke
 
 La consulta de stock requiere un código de producto distinto de cero; la instalación de Informat rechaza las consultas sin producto. La bodega es opcional.
 
-El catálogo de productos de venta está disponible en `GET /api/v1/informat/productos/` para usuarios autenticados con el permiso `informat.consultar_productos_inet`. Acepta `busqueda` (código o descripción), `pagina` (desde 1) y `tamano` (1 a 100, por defecto 25); devuelve `productos` y `hay_mas`. Consulta la tabla externa `PRODVENT` mediante `sqlserver`; configura `SQLSERVER_DB`, `SQLSERVER_HOST`, `SQLSERVER_PORT`, `SQLSERVER_USER` y `SQLSERVER_PASSWORD` y ejecuta las migraciones de la base principal para registrar el permiso. Utiliza una cuenta SQL Server con acceso exclusivamente de lectura a las tablas necesarias. La integración requiere verificar que la tabla y sus columnas coincidan con la instalación real. El acceso de aplicaciones externas aún no está implementado.
+El catálogo de productos de venta está disponible en `GET /api/v1/informat/productos/` para usuarios autenticados con el permiso `informat.consultar_productos_inet`. Acepta `busqueda` (código o descripción), `pagina` (desde 1) y `tamano` (1 a 100, por defecto 25); devuelve `productos` y `hay_mas`. Consulta la tabla externa `PRODVENT` mediante `sqlserver`; configura `SQLSERVER_DB`, `SQLSERVER_HOST`, `SQLSERVER_PORT`, `SQLSERVER_USER` y `SQLSERVER_PASSWORD` y ejecuta las migraciones de la base principal para registrar el permiso. Utiliza una cuenta SQL Server con acceso exclusivamente de lectura a las tablas necesarias. La integración requiere verificar que la tabla y sus columnas coincidan con la instalación real. El acceso externo al catálogo completo aún no está implementado; el endpoint de precios siguiente es independiente.
+
+### Consulta de precios por dispositivo
+
+`GET /api/v1/informat/precios/?producto=00123` consulta `dbo.LISTPRE1` (campo `LisPreNet`) junto a `dbo.LISTPREC` y `dbo.PRODVENT` en SQL Server. La lista se determina exclusivamente por el token del dispositivo, no se recibe por URL. Devuelve `{"producto":{"codigo":"...","descripcion":"...","precio":"1234.5000","lista":1,"nombre_lista":"...","moneda":1}}`; el precio es una cadena decimal, **no** un precio final con IVA, descuentos o reglas comerciales calculadas. Acepta `BarCod` o `BarCodBar` (máximo 30 caracteres). Si no hay precio: 404. Errores de entrada: 400; token ausente/revocado: 401; exceso de 120 peticiones por minuto: 429; SQL Server o Redis no disponibles: 503. No permite enumerar listas ni consultar una lista distinta de la autorizada.
+
+Tras aplicar las migraciones en la base principal, provisiona un dispositivo con `python manage.py crear_dispositivo_precios --nombre "Lector tienda" --lista 1`. Comprueba que la lista exista; muestra un token aleatorio **una sola vez**. Envíalo por un canal seguro al dispositivo y usa `Authorization: Bearer <token>` exclusivamente sobre HTTPS. El token no debe incluirse en URLs, repositorios ni registros. Cada instalación necesita su propio token; para revocarlo, desactiva el registro en el administrador Django. Para cambiar de lista, crea otro dispositivo/token. La cuenta SQL Server debe tener permisos de lectura en `LISTPREC`, `LISTPRE1` y `PRODVENT`.
+
+En `consulta_precio`, selecciona `Inet` y el código de lista asignado al dispositivo. Configura al compilar `INET_API_URL` (origen HTTPS sin barra final) e `INET_API_TOKEN` mediante `--dart-define`; `LANIX_API_TOKEN` conserva el acceso a Lanix. Estos valores no están en el código fuente, pero **un token empaquetado en una app móvil puede extraerse**: distribuye una compilación por dispositivo, rota credenciales cuando sea necesario y considera una provisión segura en el dispositivo si se distribuye ampliamente. El antiguo token incrustado de Lanix debe considerarse comprometido y rotarse.
 
 El catálogo también aparece en `/stock/` para usuarios que tengan tanto el permiso de stock como **Puede consultar productos de I-NET**.
 
@@ -167,6 +175,16 @@ Los registros sin contraseña, con nombres duplicados o que coincidan con una cu
 La base principal predeterminada es PostgreSQL `inet-ivs` en `192.168.0.8`. En desarrollo, Django carga las credenciales de `.env.dev` automáticamente; las variables de entorno ya definidas tienen prioridad. No se carga ese archivo cuando `DJANGO_DEBUG=False` está definido en el entorno. Redis debe estar ejecutándose en `localhost:6379` para la capa de Channels; comprueba su disponibilidad con `redis-cli ping`. Para utilizar otra dirección, define la variable `REDIS_URL` antes de iniciar Uvicorn.
 
 ## Conexiones a bases de datos
+
+### Cola de pedidos I-NET compatible con apps_satventas
+
+`modulo/pedidos_inet/` conserva las tablas de intercambio `inet_encpedidoapi` y
+`inet_detpedidoapi`. Los productores insertan encabezado y detalle en una sola
+transacción; una tarea Celery crea los documentos pendientes con el servicio
+Informat existente. La cola está desactivada por defecto y no modifica AnyMarket.
+El seguimiento está disponible en Django Admin, con permisos de lectura y URLs UUID.
+Consulta [el contrato, la activación y el tratamiento de errores](modulo/pedidos_inet/README.md)
+antes de aplicar las migraciones o configurar un productor.
 
 Configura las variables de entorno antes de iniciar cada proceso de Django, Uvicorn, Celery o Compose. `.env.example` contiene los nombres; guarda las credenciales reales únicamente en el entorno o en un archivo privado excluido de Git.
 

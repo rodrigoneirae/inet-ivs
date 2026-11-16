@@ -48,6 +48,7 @@ INSTALLED_APPS = [
     'modulo.anymarket',
     'modulo.informat',
     'modulo.catalogo',
+    'modulo.pedidos_inet',
 ]
 
 MIDDLEWARE = [
@@ -126,6 +127,17 @@ CELERY_BEAT_SCHEDULE = {
 }
 
 ANYMARKET_TOKEN = os.environ.get('ANYMARKET_TOKEN', '')
+# Activación explícita: nunca enviar documentos reales solo por desplegar código.
+PEDIDOS_INET_ENABLED = os.environ.get('PEDIDOS_INET_ENABLED', 'false').lower() == 'true'
+PEDIDOS_INET_DOCUMENTOS_PERMITIDOS = {
+    codigo.strip() for codigo in os.environ.get('PEDIDOS_INET_DOCUMENTOS_PERMITIDOS', '').split(',')
+    if codigo.strip()
+}
+if PEDIDOS_INET_ENABLED:
+    CELERY_BEAT_SCHEDULE['procesar-cola-pedidos-inet'] = {
+        'task': 'modulo.pedidos_inet.tasks.procesar_pedidos_inet',
+        'schedule': 60.0,
+    }
 INFORMAT_TOKEN_PRODUCTOS = os.environ.get('INFORMAT_TOKEN_PRODUCTOS', '')
 try:
     INFORMAT_TOKEN_TTL = int(os.environ.get('INFORMAT_TOKEN_TTL', '86400'))
