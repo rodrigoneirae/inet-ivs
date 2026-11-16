@@ -10,6 +10,8 @@ from django.views.decorators.cache import never_cache
 from django.views.decorators.http import require_GET
 from redis.exceptions import RedisError
 
+from modulo.catalogo.services.imagenes import obtener_portada_base64
+
 from ..models import DispositivoPrecios
 from ..services.precios import consultar_precio
 
@@ -64,4 +66,9 @@ def precio(request: HttpRequest) -> JsonResponse:
         return JsonResponse({'error': 'La consulta de precios no está disponible.'}, status=503)
     if resultado is None:
         return JsonResponse({'error': 'Precio no encontrado.'}, status=404)
-    return JsonResponse({'producto': resultado})
+    try:
+        portada = obtener_portada_base64(str(resultado['codigo']))
+    except DatabaseError:
+        logger.warning('No se pudo consultar una portada del catálogo')
+        portada = None
+    return JsonResponse({'producto': {**resultado, 'imagen': portada}})

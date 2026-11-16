@@ -42,15 +42,19 @@ class PreciosApiTests(SimpleTestCase):
 
     @patch('modulo.informat.views.precios.DispositivoPrecios.objects.only')
     @patch('modulo.informat.views.precios.consultar_precio')
-    def test_respuesta_y_no_encontrado(self, consulta: Mock, manager: Mock, caches: Mock) -> None:
+    @patch('modulo.informat.views.precios.obtener_portada_base64', return_value='base64-portada')
+    def test_respuesta_y_no_encontrado(self, portada: Mock, consulta: Mock, manager: Mock, caches: Mock) -> None:
         manager.return_value.get.return_value = Mock(lista_codigo=1)
         consulta.return_value = {'codigo': '0001', 'precio': '1234.5000', 'lista': 1}
         respuesta = precio(self.solicitud({'producto': '0001'}))
         self.assertEqual(respuesta.status_code, 200)
         self.assertEqual(json.loads(respuesta.content)['producto']['precio'], '1234.5000')
+        self.assertEqual(json.loads(respuesta.content)['producto']['imagen'], 'base64-portada')
+        portada.assert_called_once_with('0001')
         consulta.assert_called_once_with(1, '0001')
         consulta.return_value = None
         self.assertEqual(precio(self.solicitud({'producto': 'NOEXISTE'})).status_code, 404)
+        portada.assert_called_once()
 
     @patch('modulo.informat.views.precios.DispositivoPrecios.objects.only')
     @patch('modulo.informat.views.precios.consultar_precio')
