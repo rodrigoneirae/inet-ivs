@@ -86,7 +86,8 @@ class PreciosSqlTests(SimpleTestCase):
         resultado = consultar_precio(1, "' OR 1=1 --")
         self.assertEqual(resultado['precio'], '1234.5000')
         self.assertIn('p.LisCod = %s', cursor.execute.call_args.args[0])
-        self.assertEqual(cursor.execute.call_args.args[1], [1, "' OR 1=1 --", "' OR 1=1 --", "' OR 1=1 --"])
+        self.assertIn('dbo.PVEBAR', cursor.execute.call_args.args[0])
+        self.assertEqual(cursor.execute.call_args.args[1], [1, "' OR 1=1 --", "' OR 1=1 --", "' OR 1=1 --", "' OR 1=1 --"])
 
 
 class ProvisionTests(SimpleTestCase):
