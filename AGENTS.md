@@ -2,6 +2,15 @@
 
 Estas reglas se aplican a todo el repositorio y a cualquier código generado o modificado. Antes de trabajar, revisa las instrucciones aplicables, el código existente y la documentación del proyecto. Sigue las instrucciones de mayor prioridad; comunica cualquier conflicto o excepción necesaria. No afirmes haber ejecutado verificaciones que no realizaste.
 
+## Instrucciones por módulo
+
+Cada módulo puede añadir sus propias instrucciones en `AGENTS.md`, dentro de su carpeta. Léalas antes de tocar ese módulo: describen el dominio, las reglas que no deben romperse y las verificaciones del área.
+
+| Ruta | Documento | Alcance |
+| --- | --- | --- |
+| `modulo/inventario/` | `modulo/inventario/AGENTS.md` | Conteo físico de inventario, API web y móvil, capturadores y app Android. |
+| `inventario_movil/` | `inventario_movil/AGENTS.md` | App Flutter: SQLite offline, sincronización por registro y vinculación por QR. |
+
 ## Estructura y arquitectura
 
 - Crea cada nueva aplicación Django dentro de `modulo/<nombre_app>/`. Usa nombres descriptivos en minúsculas y `snake_case`. Configura el paquete, `AppConfig.name` e `INSTALLED_APPS` con la ruta completa `modulo.<nombre_app>`; verifica que Django descubra modelos, migraciones y pruebas.

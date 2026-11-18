@@ -201,6 +201,7 @@ function displaySession(data) {
   $('#greeting').textContent = `Hola, ${data.usuario}`;
     $('#nav-orders').hidden = !data.puede_ver_pedidos;
     $('#nav-stock').hidden = !data.puede_ver_stock;
+    $('#nav-inventarios').hidden = !data.puede_supervisar_inventario;
     $('#nav-catalogo').hidden = !data.puede_ver_catalogo_web;
     const puedeConfigurar = Boolean(data.puede_configurar_usuarios || data.puede_administrar_token);
     $('#nav-configuracion').hidden = !puedeConfigurar;

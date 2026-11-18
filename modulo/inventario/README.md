@@ -1,0 +1,31 @@
+# Inventario físico
+
+## Flujo
+
+1. Ejecuta `python manage.py migrate` y compila el frontend (`cd frontend && npm run build`). Asigna `inventario.supervisar_inventario` al supervisor. Los usuarios internos de cada capturador se crean automáticamente, con contraseña inutilizable y solo permiso de conteo.
+2. Configura `INVENTARIO_APP_TOKEN` en el entorno del backend con un valor aleatorio de **al menos 40 caracteres**. Coloca ese mismo token y la URL HTTPS del backend en `inventario_movil/config/build.local.json` y compila un APK común (`inventario_movil/README.md`). No se crea ni administra el token desde la web.
+3. En `/inventarios/`, el supervisor elige una **bodega del maestro de I-NET** (`dbo.BODEGAS`; ver `modulo/informat/docs/bodegas.md`). El backend valida el código y conserva una copia local del nombre para el historial. Registra capturadores con inventario, zona y tipo de conteo (A/B en equipos distintos, **misma zona**, o conteo único). La **zona se define en el backend** al registrar el capturador; el operador no la escribe. No hay formulario web de creación de bodegas, zonas o ubicaciones.
+4. Flutter vincula el equipo escaneando el QR del conteo. En su inicio ofrece **Inventario**, **Importar productos**, **Equipo** y **Desvincular**. El equipo importa el catálogo desde `PRODVENT` de I-NET por páginas y descarga la copia para contar offline. En Inventario confirma la zona recibida, ingresa una ubicación de hasta 40 caracteres, el SKU o código de barras y la cantidad. Las ubicaciones se crean internamente al sincronizar los eventos; la bodega y la zona están fijadas por el inventario y el conteo.
+5. Los eventos se guardan offline en SQLite con UUID, zona y ubicación. La API confirma UUID individualmente; reintentar el mismo evento no duplica la cantidad. Al terminar, se sincronizan los pendientes y se finaliza el turno. El supervisor revisa en la web el análisis y cierra el inventario para conservarlo en el historial.
+
+El análisis compara **zona + ubicación + producto**: A y B iguales = `coincidente`, distintos = `diferencia`, ausente de un lado tras finalizar ambos = `faltante`, turno único finalizado = `coincidente`. Mientras un turno esté abierto, el resultado es `pendiente`. No aparecen productos sin conteos de ninguna parte ni se modifica stock en I-NET.
+
+## Seguridad y API
+
+El token compartido de aplicación solo permite intentar la **vinculación**, que además requiere un código aleatorio temporal de un solo uso; no identifica a la persona. El token del equipo es distinto y se almacena únicamente como huella SHA-256 en el backend. Sin token de aplicación configurado no es posible vincular nuevos equipos. Usa HTTPS fuera del emulador local. Un equipo revocado no puede volver a sincronizar: **verifica sus pendientes antes de revocarlo**. El acceso heredado `Bearer <INVENTARIO_APP_TOKEN>` + `X-Contador` sigue temporalmente habilitado para vaciar pendientes de APK anteriores; no permite suplantar cuentas internas de capturadores y debe retirarse tras completar la transición.
+
+La API web bajo `/api/v1/inventarios/` usa sesión Django y CSRF. `GET/POST maestros/` conserva compatibilidad con instalaciones previas, pero la web ya no usa maestros manuales. `POST crear/` acepta `{ "nombre": "Ciclo", "bodega": "B01" }`; `POST <uuid>/asignar/` recibe `{ "usuario": "nombre", "tipo": "a|b|unico" }` o `{ "dispositivo": "<uuid del capturador>", "tipo": "a|b|unico", "zona": "Z1" }`; la zona es obligatoria al asignar un capturador y debe coincidir con la de los demás turnos del inventario.
+
+`POST capturadores/crear/` (supervisor, sesión y CSRF) registra el equipo y crea su cuenta interna sin contraseña. Si el alta incluye el turno (`{"nombre": "…", "inventario": "<uuid>", "zona": "Z1", "tipo": "a|b|unico"}`), valida las reglas del inventario y crea el turno en la misma transacción: si choca, devuelve 409 y el capturador no queda creado. Sin `inventario` solo registra el equipo. `GET capturadores/` lista los equipos; `POST capturadores/<uuid>/revocar/` desactiva el equipo. `POST capturadores/<uuid>/qr/` genera el QR del turno indicado: devuelve `contenido_qr` con `v`, `codigo`, `inventario`, `bodega`, `zona`, `usuario` y `tipo`, más un código temporal que vence en 10 minutos. `POST movil/vincular/` recibe `{"codigo":"…"}` con `Authorization: Bearer <INVENTARIO_APP_TOKEN>` y devuelve el token propio del equipo **una sola vez**, junto con la configuración autorizada (`inventario`, `bodega`, `zona`, `usuario`, `tipo`, `turno`). Tiene límite de 10 intentos/minuto por IP en Redis (si Redis falla, devuelve 503). Las demás rutas móviles aceptan `Authorization: Bearer <token_del_equipo>`; los turnos se limitan a su cuenta interna, no se envía `X-Contador`:
+
+| Método y ruta móvil | Uso |
+| --- | --- |
+| `GET movil/?pagina=1` | Inventarios abiertos asignados al capturador, 100 por página. |
+| `GET movil/<uuid>/configuracion/` | Bodega y turnos asignados al capturador. |
+| `GET movil/equipo/` | Configuración del conteo enlazado al token del equipo. Permite recuperar configuraciones de instalaciones anteriores sin desvincular ni borrar datos locales. |
+| `GET movil/catalogo/?pagina=1&tamano=500` | Catálogo importado paginado. |
+| `POST movil/catalogo/importar/` | Importa una página desde I-NET. Requiere token del equipo; responde `importados`, `pagina`, `hay_mas`. La app descarga después `movil/catalogo/`. |
+| `POST movil/asignaciones/<uuid>/sincronizar/` | Hasta 100 eventos `{ "evento":"<uuid>", "zona":"Z1", "ubicacion":"E1", "producto":"SKU", "cantidad":"2.000" }`; responde `confirmados`. |
+| `POST movil/asignaciones/<uuid>/finalizar/` | Cierra el turno después de sincronizar todos sus eventos. |
+
+Las migraciones anteriores se mantienen sin modificar; las nuevas solo agregan restricciones para turnos globales. Las asignaciones históricas por zona o ubicación siguen pudiéndose consultar y comparar. La importación del catálogo actualiza productos existentes pero no purga los eliminados del origen. La base SQLite de la app no está cifrada por la aplicación: usa dispositivos con cifrado y bloqueo de pantalla.

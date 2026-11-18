@@ -517,6 +517,30 @@
   color: var(--color-ink-muted);
 }
 
+.tabulator .tabulator-footer .tabulator-page {
+  background-color: var(--color-surface);
+  border-color: var(--color-line-strong);
+  color: var(--color-ink-muted);
+  border-radius: var(--radius-sm);
+  padding: 0.25rem 0.6rem;
+  font-size: 0.75rem;
+}
+
+.tabulator .tabulator-footer .tabulator-page:hover:not(:disabled) {
+  background-color: var(--color-surface-muted);
+  color: var(--color-ink);
+}
+
+.tabulator .tabulator-footer .tabulator-page.active {
+  background-color: var(--color-primary);
+  border-color: var(--color-primary);
+  color: var(--color-primary-contrast);
+}
+
+.tabulator .tabulator-footer .tabulator-page:disabled {
+  opacity: 0.45;
+}
+
 /* Litepicker: se alinea con la paleta del tema activo. */
 .litepicker {
   --litepicker-container-months-color-bg: var(--color-surface);

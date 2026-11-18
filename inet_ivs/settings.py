@@ -20,6 +20,7 @@ if os.environ.get('DJANGO_DEBUG', 'true').lower() == 'true':
 # SECURITY WARNING: keep the secret key used in production secret!
 DEBUG = os.environ.get('DJANGO_DEBUG', 'true').lower() == 'true'
 SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY')
+INVENTARIO_APP_TOKEN = os.environ.get('INVENTARIO_APP_TOKEN', '').strip()
 if not SECRET_KEY:
     if not DEBUG:
         raise ImproperlyConfigured('DJANGO_SECRET_KEY is required when DEBUG is false.')
@@ -49,6 +50,7 @@ INSTALLED_APPS = [
     'modulo.informat',
     'modulo.catalogo',
     'modulo.pedidos_inet',
+    'modulo.inventario',
 ]
 
 MIDDLEWARE = [

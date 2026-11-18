@@ -1,0 +1,367 @@
+---
+import '../styles/main.css';
+import Modal from '../components/Modal.astro';
+
+const apiBase = (import.meta.env.PUBLIC_API_BASE ?? '').replace(/\/$/, '');
+---
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light dark" />
+    <meta name="theme-color" content="#2563eb" />
+    <meta name="description" content="Conteo físico de inventario en bodegas de I-NET" />
+    <meta name="api-base" content={apiBase} />
+    <title>Inventario físico · INET IVS</title>
+  </head>
+  <body>
+    <a class="skip-link" href="#contenido">Saltar al contenido</a>
+
+    <svg class="hidden" aria-hidden="true" focusable="false">
+      <symbol id="icon-inicio" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M2.25 12l8.954-8.955c.44-.439 1.152-.439 1.591 0L21.75 12M4.5 9.75v10.125c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21h4.125c.621 0 1.125-.504 1.125-1.125v-6.75c0-.621-.504-1.125-1.125-1.125H6.75c-.621 0-1.125.504-1.125 1.125z" />
+      </symbol>
+      <symbol id="icon-inventario" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M3.75 7.5l8.25-3 8.25 3m-16.5 0l8.25 3m8.25-3v9l-8.25 3m-8.25-3v-9m8.25 3v9m0-9l8.25-3m-8.25 3L3.75 7.5" />
+      </symbol>
+      <symbol id="icon-capturador" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M10.5 3.75h3A1.5 1.5 0 0115 5.25v.75H9v-.75A1.5 1.5 0 0110.5 3.75zM5.25 6h13.5A1.5 1.5 0 0120.25 7.5v11.25a1.5 1.5 0 01-1.5 1.5H5.25a1.5 1.5 0 01-1.5-1.5V7.5A1.5 1.5 0 015.25 6zM9 12.75h6" />
+      </symbol>
+      <symbol id="icon-menu" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
+      </symbol>
+      <symbol id="icon-cerrar" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M6 18L18 6M6 6l12 12" />
+      </symbol>
+      <symbol id="icon-izquierda" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M15.75 19.5L8.25 12l7.5-7.5" />
+      </symbol>
+      <symbol id="icon-sol" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M12 3v2.25m6.364.386l-1.591 1.591M21 12h-2.25m-.386 6.364l-1.591-1.591M12 18.75V21m-4.773-4.227l-1.591 1.591M5.25 12H3m4.227-4.773L5.636 5.636M15.75 12a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0z" />
+      </symbol>
+      <symbol id="icon-luna" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M21.752 15.002A9.72 9.72 0 0118 15.75c-5.385 0-9.75-4.365-9.75-9.75 0-1.33.266-2.597.748-3.752A9.753 9.753 0 003 11.25C3 16.635 7.365 21 12.75 21a9.753 9.753 0 009.002-5.998z" />
+      </symbol>
+      <symbol id="icon-info" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M12 8.25v.008M12 11.25v.008M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+      </symbol>
+      <symbol id="icon-alerta" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
+      </symbol>
+      <symbol id="icon-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M4.5 12.75l6 6 9-13.5" />
+      </symbol>
+      <symbol id="icon-qr" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M3.75 3.75h6v6h-6v-6zm10.5 0h6v6h-6v-6zm-10.5 10.5h6v6h-6v-6zm10.5 0h2.25v2.25h-2.25v-2.25zm5.25 0h1.5v1.5h-1.5v-1.5zm-5.25 3h1.5v3h-1.5v-3zm3 0h3v1.5h-3v-1.5zm0 3h1.5v1.5h-1.5V18z" />
+      </symbol>
+      <symbol id="icon-editar" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931z" />
+      </symbol>
+      <symbol id="icon-copiar" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M15.75 17.25v3.375c0 .621-.504 1.125-1.125 1.125h-9.75a1.125 1.125 0 01-1.125-1.125V7.875c0-.621.504-1.125 1.125-1.125H9.75m0 3.375h6.375c.621 0 1.125.504 1.125 1.125v9.375M9.75 10.125h3v3h-3v-3z" />
+      </symbol>
+    </svg>
+
+    <div id="toast" class="toast" role="status" aria-live="polite" data-variant="info" hidden>
+      <span class="toast-icon" aria-hidden="true">
+        <svg class="size-4" viewBox="0 0 24 24"><use id="toast-icon" href="#icon-info"></use></svg>
+      </span>
+      <p id="toast-message" class="min-w-0 flex-1 leading-relaxed"></p>
+      <button id="toast-close" class="icon-btn -mt-1 -mr-1 size-7" type="button" aria-label="Cerrar notificación">
+        <svg class="size-4" viewBox="0 0 24 24"><use href="#icon-cerrar"></use></svg>
+      </button>
+    </div>
+
+    <div class="app-shell">
+      <aside id="sidebar" class="sidebar" data-state="closed" data-collapsed="false" aria-label="Navegación principal">
+        <div class="flex h-16 shrink-0 items-center gap-3 border-b border-line px-4">
+          <img src="/toggle-logo.png" alt="" class="size-9 shrink-0 rounded-lg object-contain" />
+          <span class="brand-wordmark min-w-0">
+            <img src="/LOGO-INVERSIERRA.png" alt="Inversierra" class="block h-auto w-32 max-w-full" />
+            <span class="sidebar-meta block truncate text-xs text-ink-subtle">Panel operativo</span>
+          </span>
+          <button id="sidebar-collapse" class="icon-btn ml-auto hidden size-8 md:inline-flex" type="button" aria-label="Contraer el menú" aria-expanded="true">
+            <svg class="size-4" viewBox="0 0 24 24"><use href="#icon-izquierda"></use></svg>
+          </button>
+        </div>
+
+        <nav class="flex-1 space-y-1 overflow-y-auto p-3" aria-label="Secciones">
+          <p class="sidebar-meta px-3 pb-2 text-xs font-semibold uppercase tracking-wider text-ink-subtle">Navegación</p>
+          <a class="nav-link" href="/">
+            <svg class="nav-icon size-5 shrink-0" viewBox="0 0 24 24"><use href="#icon-inicio"></use></svg>
+            <span class="nav-label">Panel principal</span>
+          </a>
+          <a class="nav-link" href="/inventarios/" aria-current="page">
+            <svg class="nav-icon size-5 shrink-0" viewBox="0 0 24 24"><use href="#icon-inventario"></use></svg>
+            <span class="nav-label">Inventarios</span>
+          </a>
+          <a class="nav-link" href="/catalogo/">
+            <svg class="nav-icon size-5 shrink-0" viewBox="0 0 24 24"><use href="#icon-capturador"></use></svg>
+            <span class="nav-label">Catálogo</span>
+          </a>
+          <a class="nav-link" href="/usuarios/">
+            <svg class="nav-icon size-5 shrink-0" viewBox="0 0 24 24"><use href="#icon-capturador"></use></svg>
+            <span class="nav-label">Usuarios</span>
+          </a>
+        </nav>
+
+        <div class="border-t border-line p-3">
+          <div class="sidebar-meta flex items-center gap-3 rounded-lg bg-surface-muted px-3 py-2.5">
+            <span id="user-initials" class="flex size-9 shrink-0 items-center justify-center rounded-full bg-primary-soft text-xs font-bold text-primary-ink">–</span>
+            <span class="min-w-0">
+              <span id="username" class="block truncate text-sm font-medium text-ink"></span>
+              <span class="block truncate text-xs text-ink-subtle">Sesión activa</span>
+            </span>
+          </div>
+        </div>
+      </aside>
+
+      <div id="sidebar-backdrop" class="sidebar-backdrop" hidden></div>
+
+      <div class="flex min-w-0 flex-1 flex-col">
+        <header class="topbar flex h-16 shrink-0 items-center gap-3 px-4 md:px-6">
+          <button id="menu-toggle" class="icon-btn md:hidden" type="button" aria-controls="sidebar" aria-expanded="false" aria-label="Mostrar u ocultar el menú">
+            <svg class="size-5" viewBox="0 0 24 24"><use href="#icon-menu"></use></svg>
+          </button>
+          <div class="min-w-0 flex-1">
+            <h1 class="truncate text-sm font-semibold tracking-tight text-ink md:text-base">Inventario físico</h1>
+            <p class="hidden truncate text-xs text-ink-subtle md:block">INET IVS · Conteo de bodegas</p>
+          </div>
+          <button id="theme-toggle" class="icon-btn" type="button" aria-label="Cambiar entre tema claro y oscuro">
+            <svg class="size-5 dark:hidden" viewBox="0 0 24 24"><use href="#icon-sol"></use></svg>
+            <svg class="hidden size-5 dark:block" viewBox="0 0 24 24"><use href="#icon-luna"></use></svg>
+          </button>
+          <a class="btn btn-secondary btn-sm shrink-0" href="/">Volver al panel</a>
+        </header>
+
+        <main id="contenido" class="flex-1">
+          <div class="mx-auto w-full max-w-[100rem] px-4 py-6 md:px-8 md:py-8">
+            <div class="flex flex-wrap items-end justify-between gap-4">
+              <div>
+                <p class="text-xs font-semibold uppercase tracking-wider text-primary">Módulo de inventario</p>
+                <h2 class="mt-1 text-2xl font-bold tracking-tight text-ink">Conteo físico de bodegas</h2>
+                <p class="mt-1 max-w-2xl text-sm text-ink-muted">Crea el inventario, define los conteos con su zona y tipo, y entrega la configuración al capturador por QR.</p>
+              </div>
+              <div class="flex flex-wrap gap-2">
+                <button id="open-inventory-modal" class="btn btn-primary" type="button">Nuevo inventario</button>
+              </div>
+            </div>
+
+            <div class="mt-6 border-b border-line">
+              <div class="flex gap-2" role="tablist" aria-label="Secciones de inventario">
+                <button id="tab-inventarios" class="user-tab is-active" type="button" role="tab" aria-selected="true" aria-controls="vista-inventarios" tabindex="0">Inventarios</button>
+                <button id="tab-capturadores" class="user-tab" type="button" role="tab" aria-selected="false" aria-controls="vista-capturadores" tabindex="-1">Capturadores <span id="tab-capturadores-count" class="user-tab-count">0</span></button>
+              </div>
+            </div>
+
+            <section id="vista-inventarios" class="mt-6" role="tabpanel" aria-labelledby="tab-inventarios">
+              <div class="grid items-start gap-5 xl:grid-cols-[minmax(19rem,23rem)_minmax(0,1fr)]">
+                <aside class="card overflow-hidden" aria-label="Lista de inventarios">
+                  <div class="flex items-center justify-between gap-3 border-b border-line px-4 py-3">
+                    <h3 class="card-title">Inventarios</h3>
+                    <span id="inventory-count" class="chip chip-neutral">0</span>
+                  </div>
+                  <ul id="inventory-list" class="max-h-[28rem] overflow-y-auto p-2"></ul>
+                  <p id="inventory-empty" class="px-4 py-6 text-center text-sm text-ink-muted" hidden>Todavía no hay inventarios. Crea el primero para empezar.</p>
+                  <div id="inventory-more" class="border-t border-line px-4 py-3" hidden>
+                    <button id="more-inventories" class="btn btn-secondary btn-sm w-full" type="button">Cargar más</button>
+                  </div>
+                </aside>
+
+                <article id="inventory-detail" class="card min-w-0 p-5 md:p-6" aria-label="Detalle del inventario">
+                  <div id="detail-empty" class="py-12 text-center">
+                    <p class="text-sm font-medium text-ink">Selecciona un inventario</p>
+                    <p class="mt-1 text-sm text-ink-muted">Verás sus conteos, la configuración de cada capturador y el análisis A/B.</p>
+                  </div>
+
+                  <div id="detail-content" hidden>
+                    <header class="flex flex-wrap items-start justify-between gap-4 border-b border-line pb-4">
+                      <div class="min-w-0">
+                        <div class="flex flex-wrap items-center gap-2">
+                          <h3 id="detail-name" class="text-lg font-semibold text-ink"></h3>
+                          <span id="detail-state" class="chip chip-neutral"></span>
+                        </div>
+                        <p id="detail-meta" class="mt-1 text-sm text-ink-muted"></p>
+                      </div>
+                      <div class="flex flex-wrap gap-2">
+                        <button id="detail-close" class="btn btn-danger btn-sm" type="button">Cerrar inventario</button>
+                      </div>
+                    </header>
+
+                    <div class="mt-4 border-b border-line">
+                      <div class="flex gap-2" role="tablist" aria-label="Detalle del inventario">
+                        <button id="tab-turnos" class="user-tab is-active" type="button" role="tab" aria-selected="true" aria-controls="panel-turnos" tabindex="0">Conteos y configuración</button>
+                        <button id="tab-analisis" class="user-tab" type="button" role="tab" aria-selected="false" aria-controls="panel-analisis" tabindex="-1">Análisis A/B</button>
+                      </div>
+                    </div>
+
+                    <section id="panel-turnos" class="mt-5" role="tabpanel" aria-labelledby="tab-turnos">
+                      <h4 class="font-semibold text-ink">Conteos configurados</h4>
+                      <p class="mt-1 text-sm text-ink-muted">Los define el registro del capturador: la bodega, la zona y el tipo se eligen al darlo de alta en la pestaña Capturadores.</p>
+                      <ul id="assignments-list" class="mt-3 space-y-3"></ul>
+                      <p id="assignments-empty" class="mt-3 rounded-xl border border-dashed border-line bg-surface-muted px-4 py-6 text-center text-sm text-ink-muted" hidden>
+                        Sin conteos. Registra o reconfigura un capturador desde la pestaña Capturadores para generar su QR.
+                      </p>
+                    </section>
+
+                    <section id="panel-analisis" class="mt-5" role="tabpanel" aria-labelledby="tab-analisis" hidden>
+                      <div id="analysis-summary" class="flex flex-wrap gap-2" aria-live="polite"></div>
+                      <div id="analysis-table" class="mt-3" aria-label="Análisis de conteos"></div>
+                      <p id="analysis-empty" class="mt-3 rounded-xl border border-dashed border-line bg-surface-muted px-4 py-6 text-center text-sm text-ink-muted" hidden>
+                        Todavía no hay conteos sincronizados. El análisis aparece cuando los capturadores registren productos.
+                      </p>
+                    </section>
+                  </div>
+                </article>
+              </div>
+            </section>
+
+            <section id="vista-capturadores" class="mt-6" role="tabpanel" aria-labelledby="tab-capturadores" hidden>
+              <div class="flex flex-wrap items-end justify-between gap-3">
+                <div>
+                  <h3 class="card-title">Capturadores</h3>
+                  <p class="card-subtitle">Genera el QR junto al nombre del operador, también para volver a vincularlo. «Vinculación emitida» no confirma que la app siga vinculada: el equipo puede haberse desvinculado localmente.</p>
+                </div>
+                <button id="open-device-modal" class="btn btn-primary" type="button">Registrar capturador</button>
+              </div>
+
+              <div class="card mt-4 overflow-hidden">
+                <div class="flex flex-wrap items-center gap-3 border-b border-line px-4 py-3">
+                  <div class="min-w-0 flex-1 sm:max-w-sm">
+                    <label class="sr-only" for="device-search">Buscar capturador</label>
+                    <input id="device-search" type="search" class="field" placeholder="Buscar por operador, bodega, zona o inventario" maxlength="80" autocomplete="off" />
+                  </div>
+                  <span id="device-count" class="chip chip-neutral" aria-live="polite">0</span>
+                </div>
+                <div id="device-table" class="p-3" aria-label="Capturadores registrados"></div>
+              </div>
+            </section>
+          </div>
+        </main>
+      </div>
+    </div>
+
+    <Modal id="modal-inventario" title="Nuevo inventario" description="Elige la bodega del maestro de I-NET y nombra el ciclo de conteo.">
+      <form id="create-inventory" class="space-y-4">
+        <div>
+          <label class="field-label" for="inventory-name">Nombre del inventario</label>
+          <input id="inventory-name" name="nombre" class="field" maxlength="120" required />
+        </div>
+        <div>
+          <label class="field-label" for="inventory-warehouse">Bodega de I-NET</label>
+          <select id="inventory-warehouse" name="bodega" class="field" required>
+            <option value="">Cargando bodegas…</option>
+          </select>
+        </div>
+        <div class="flex flex-wrap justify-end gap-2 pt-2">
+          <button id="close-inventory-modal" class="btn btn-secondary" type="button">Cancelar</button>
+          <button class="btn btn-primary" type="submit">Crear inventario</button>
+        </div>
+      </form>
+    </Modal>
+
+    <Modal id="modal-device" title="Registrar capturador" description="Asigna el inventario, la zona y el tipo de conteo: el equipo recibirá esa configuración por QR y no la escribe.">
+      <form id="create-device" class="space-y-4">
+        <div>
+          <label class="field-label" for="device-name">Nombre del operador</label>
+          <input id="device-name" name="nombre" class="field" maxlength="80" required />
+        </div>
+        <div>
+          <label class="field-label" for="device-inventory">Inventario</label>
+          <select id="device-inventory" name="inventario" class="field">
+            <option value="">Cargando inventarios…</option>
+          </select>
+        </div>
+        <div class="grid gap-4 sm:grid-cols-2">
+          <div>
+            <label class="field-label" for="device-zone">Zona de conteo</label>
+            <input id="device-zone" name="zona" class="field" maxlength="30" placeholder="Ej.: Z1" />
+          </div>
+          <div>
+            <label class="field-label" for="device-type">Tipo de conteo</label>
+            <select id="device-type" name="tipo" class="field">
+              <option value="a">Parte A</option>
+              <option value="b">Contraparte B</option>
+              <option value="unico">Conteo único</option>
+            </select>
+          </div>
+        </div>
+        <p id="device-hint" class="rounded-lg border border-line bg-surface px-3 py-2 text-sm text-ink-muted" role="status" aria-live="polite"></p>
+        <div class="flex flex-wrap justify-end gap-2 pt-2">
+          <button id="close-device-modal" class="btn btn-secondary" type="button">Cancelar</button>
+          <button class="btn btn-primary" type="submit">Registrar capturador</button>
+        </div>
+      </form>
+    </Modal>
+
+    <Modal id="modal-qr" title="Configuración del capturador" description="Escanea el código en el equipo. Vence en diez minutos y sirve una sola vez.">
+      <div class="space-y-5">
+        <div class="flex justify-center rounded-xl border border-line bg-surface-muted p-4">
+          <canvas id="pairing-canvas" role="img" aria-label="Código QR de vinculación del capturador"></canvas>
+        </div>
+        <dl class="grid gap-4 sm:grid-cols-2">
+          <div>
+            <dt class="field-label">Operador</dt>
+            <dd id="qr-operador" class="text-sm font-medium text-ink"></dd>
+          </div>
+          <div>
+            <dt class="field-label">Bodega del inventario</dt>
+            <dd id="qr-bodega" class="text-sm font-medium text-ink"></dd>
+          </div>
+          <div>
+            <dt class="field-label">Zona de conteo</dt>
+            <dd id="qr-zona" class="text-sm font-medium text-ink"></dd>
+          </div>
+          <div>
+            <dt class="field-label">Tipo de conteo</dt>
+            <dd id="qr-tipo" class="text-sm font-medium text-ink"></dd>
+          </div>
+          <div class="sm:col-span-2">
+            <dt class="field-label">Inventario</dt>
+            <dd id="qr-inventario" class="text-sm font-medium text-ink"></dd>
+          </div>
+        </dl>
+        <details class="rounded-lg border border-line bg-surface-muted p-3">
+          <summary class="cursor-pointer text-sm font-medium text-ink-muted">Contenido del QR (depuración)</summary>
+          <textarea id="pairing-content" class="field mt-2 w-full break-all font-mono text-xs" rows="4" readonly></textarea>
+        </details>
+      </div>
+      <Fragment slot="actions">
+        <button id="copy-pairing" class="btn btn-secondary" type="button">
+          <svg class="size-4" viewBox="0 0 24 24"><use href="#icon-copiar"></use></svg>
+          Copiar contenido
+        </button>
+        <button class="btn btn-primary" id="close-qr-modal" type="button">Listo</button>
+      </Fragment>
+    </Modal>
+
+    <Modal id="modal-turno" title="Reconfigurar conteo" description="Ajusta la zona y el tipo de conteo que recibirá el capturador.">
+      <form id="turn-form" class="space-y-4">
+        <input id="turn-id" name="turno" type="hidden" />
+        <div>
+          <label class="field-label" for="turn-zone">Zona de conteo</label>
+          <input id="turn-zone" name="zona" class="field" maxlength="30" required />
+        </div>
+        <div>
+          <label class="field-label" for="turn-type">Tipo de conteo</label>
+          <select id="turn-type" name="tipo" class="field">
+            <option value="a">Parte A</option>
+            <option value="b">Contraparte B</option>
+            <option value="unico">Conteo único</option>
+          </select>
+        </div>
+        <p class="rounded-lg bg-surface-muted px-3 py-2 text-xs text-ink-muted">
+          Mover la zona de un conteo A/B arrastra al conteo homólogo: el análisis compara dentro de la misma zona.
+        </p>
+        <div class="flex flex-wrap justify-end gap-2 pt-2">
+          <button id="close-turn-modal" class="btn btn-secondary" type="button">Cancelar</button>
+          <button class="btn btn-primary" type="submit">Guardar</button>
+        </div>
+      </form>
+    </Modal>
+
+    <noscript>Esta interfaz requiere JavaScript para gestionar los inventarios.</noscript>
+    <script src="../scripts/inventarios.js"></script>
+  </body>
+</html>

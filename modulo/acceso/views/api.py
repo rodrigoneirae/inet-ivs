@@ -21,9 +21,12 @@ PERMISOS_PERFIL = (
     ('anymarket.change_pedido', 'Ejecutar acciones de pedidos y sincronización'),
     ('informat.consultar_stock', 'Consultar stock'),
     ('informat.consultar_productos_inet', 'Consultar productos I-NET'),
+    ('informat.consultar_bodegas_inet', 'Consultar bodegas I-NET'),
     ('informat.administrar_token', 'Administrar token de I-NET'),
     ('catalogo.ver_catalogo', 'Consultar catálogo web e imágenes'),
     ('catalogo.descargar_catalogo', 'Descargar imágenes del catálogo'),
+    ('inventario.supervisar_inventario', 'Supervisar inventarios físicos'),
+    ('inventario.contar_inventario', 'Registrar conteos físicos'),
 )
 
 
@@ -98,6 +101,8 @@ def _permisos_sesion(user: object) -> dict[str, bool]:
         'puede_ver_pedidos': user.has_perm('anymarket.view_pedido'),
         'puede_sincronizar': user.has_perm('anymarket.change_pedido'),
         'puede_configurar_usuarios': user.is_superuser,
+        'puede_supervisar_inventario': user.has_perm('inventario.supervisar_inventario'),
+        'puede_contar_inventario': user.has_perm('inventario.contar_inventario'),
     }
 
 

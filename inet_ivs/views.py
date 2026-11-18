@@ -34,6 +34,18 @@ def stock(request: HttpRequest) -> HttpResponse:
 
 
 @login_required
+@permission_required('inventario.supervisar_inventario', raise_exception=True)
+@require_safe
+@never_cache
+def pagina_inventarios(request: HttpRequest) -> HttpResponse:
+    try:
+        archivo = (settings.BASE_DIR / 'frontend' / 'dist' / 'inventarios' / 'index.html').open('rb')
+    except FileNotFoundError:
+        return HttpResponse('La interfaz Astro aún no está compilada.', status=503, content_type='text/plain')
+    return FileResponse(archivo, content_type='text/html; charset=utf-8')
+
+
+@login_required
 @require_safe
 @never_cache
 def configurar_usuarios(request: HttpRequest) -> HttpResponse:

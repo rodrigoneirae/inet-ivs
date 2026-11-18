@@ -17,3 +17,6 @@ frontend/.astro/
 frontend/src-tauri/target/
 frontend/src-tauri/gen/
 /media/
+inventario_movil/*.iml
+inventario_movil/android/*.iml
+/inventario_movil/
