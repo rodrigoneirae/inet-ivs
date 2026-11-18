@@ -69,7 +69,7 @@ Dos superficies distintas, no las mezcles:
 - El token del equipo se guarda en almacenamiento seguro, no en SQLite ni en el APK.
 - La lista de inventarios se descarga **una sola vez** y persiste, incluso vacía. «Actualizar lista» es manual.
 - Cada conteo se guarda primero en SQLite y luego se envía **por separado**; si falla, queda pendiente con su UUID y «Sincronizar pendientes» reintenta todos los inventarios.
-- El MC330 lee el QR con su lector 2D integrado mediante DataWedge Intent Output (Broadcast `com.example.inventario_movil.SCAN`) o Keystroke Output; no usa cámara ni permiso `CAMERA`. En depuración (`kDebugMode`) hay un campo para pegar el contenido.
+- El MC330 lee el QR con su lector 2D integrado mediante DataWedge Intent Output (Broadcast `cl.inversierra.inventario_movil.SCAN`) o Keystroke Output; no usa cámara ni permiso `CAMERA`. En depuración (`kDebugMode`) hay un campo para pegar el contenido.
 - Compila con `config/build.local.json` (ignorado por Git). Desde IntelliJ: `--dart-define-from-file=config/build.local.json`. En el emulador, Django se ve en `http://10.0.2.2:8000`, no en `127.0.0.1`.
 - No elimines eventos pendientes por la vía de la aplicación: primero sincroniza.
 

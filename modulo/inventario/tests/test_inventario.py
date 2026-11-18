@@ -1,6 +1,7 @@
 import json
 import uuid
 from datetime import timedelta
+from decimal import Decimal
 from unittest.mock import Mock, patch
 
 from django.contrib.auth import get_user_model
@@ -8,7 +9,8 @@ from django.contrib.auth.models import Permission
 from django.test import Client, TestCase, override_settings
 from django.utils import timezone
 
-from modulo.inventario.models import Asignacion, Bodega, Conteo, Inventario, ProductoSnapshot, TokenMovil, Ubicacion, Zona
+from modulo.inventario.models import (Asignacion, Bodega, Conteo, Inventario, ProductoBarra,
+                                       ProductoSnapshot, TokenMovil, Ubicacion, Zona)
 from modulo.inventario.services.capturadores import huella
 from modulo.inventario.services.catalogo import CatalogoNoDisponible
 
@@ -439,6 +441,29 @@ class InventarioApiTests(TestCase):
         ProductoSnapshot.objects.create(codigo='SKU2', descripcion='Otro', codigo_barra='BARRA')
         self.assertEqual(self.post(self.a, url, {'eventos': [{**valid, 'producto': 'BARRA'}]}).status_code, 409)
         self.assertEqual(Conteo.objects.count(), 0)
+        ProductoBarra.objects.create(producto_id='SKU1', codigo_barra='DUPLICADO')
+        ProductoBarra.objects.create(producto_id='SKU2', codigo_barra='DUPLICADO')
+        self.assertEqual(
+            self.post(self.a, url, {'eventos': [{**valid, 'producto': 'DUPLICADO'}]}).status_code,
+            409,
+        )
+        self.assertEqual(Conteo.objects.count(), 0)
+
+    def test_catalogo_expone_codigos_alternativos_y_embalaje(self) -> None:
+        ProductoSnapshot.objects.filter(codigo='SKU1').update(embalaje=Decimal('12'))
+        ProductoBarra.objects.create(producto_id='SKU1', codigo_barra='7702147235378')
+        client = Client()
+        client.force_login(self.a)
+        pagina = client.get('/api/v1/inventarios/catalogo/?pagina=1&tamano=10').json()
+        fila = next(producto for producto in pagina['productos'] if producto['codigo'] == 'SKU1')
+        self.assertEqual(fila['embalaje'], '12')
+        self.assertIn('7702147235378', fila['barras'])
+        self.assertIn('BARRA', fila['barras'])
+        turno = self.assign(self.a, 'unico')
+        url = f'/api/v1/inventarios/asignaciones/{turno.public_id}/sincronizar/'
+        event = {'evento': str(uuid.uuid4()), 'producto': '7702147235378', 'cantidad': '1'}
+        self.assertEqual(self.post(self.a, url, {'eventos': [event]}).status_code, 200)
+        self.assertEqual(Conteo.objects.get().producto_codigo, 'SKU1')
 
     @override_settings(INVENTARIO_APP_TOKEN='a' * 48)
     def test_token_env_conteo_zona_y_revocacion_por_configuracion(self) -> None:

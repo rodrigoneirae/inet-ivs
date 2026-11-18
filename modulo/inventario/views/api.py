@@ -11,7 +11,7 @@ from django.contrib.auth import get_user_model
 from django.contrib.auth.base_user import AbstractBaseUser
 from django.core.cache import caches
 from django.db import IntegrityError, transaction
-from django.db.models import ProtectedError
+from django.db.models import ProtectedError, Q
 from django.http import HttpRequest, JsonResponse
 from django.utils import timezone
 from django.views.decorators.cache import never_cache
@@ -23,7 +23,7 @@ from modulo.inventario.forms.inventario import (
     AsignacionForm, BodegaForm, ConteoForm, InventarioForm, PaginaForm, TurnoForm, ZonaForm,
 )
 from modulo.inventario.models import (
-    Asignacion, Bodega, Conteo, Inventario, ProductoSnapshot, TokenMovil, Ubicacion, Zona,
+    Asignacion, Bodega, Conteo, Inventario, ProductoBarra, ProductoSnapshot, TokenMovil, Ubicacion, Zona,
 )
 from modulo.inventario.services.analisis import analizar
 from modulo.inventario.services.capturadores import (crear_capturador, generar_vinculacion,
@@ -353,6 +353,12 @@ def configuracion_movil(request: HttpRequest, inventario_id: UUID) -> JsonRespon
                                       'finalizado': t.finalizada_en is not None} for t in turnos]})
 
 
+def _texto_embalaje(valor) -> str:
+    if valor is None:
+        return ''
+    return f'{valor.normalize():f}'
+
+
 @require_GET
 @never_cache
 def catalogo(request: HttpRequest) -> JsonResponse:
@@ -366,9 +372,27 @@ def catalogo(request: HttpRequest) -> JsonResponse:
     tamano = formulario.cleaned_data['tamano'] or 200
     inicio = (pagina - 1) * tamano
     filas = list(ProductoSnapshot.objects.order_by('codigo').values(
-        'codigo', 'descripcion', 'codigo_barra',
+        'codigo', 'descripcion', 'codigo_barra', 'embalaje',
     )[inicio:inicio + tamano + 1])
-    return JsonResponse({'productos': filas[:tamano], 'pagina': pagina, 'hay_mas': len(filas) > tamano})
+    productos = filas[:tamano]
+    barras: dict[str, list[str]] = {}
+    for barra, codigo in ProductoBarra.objects.filter(
+            producto_id__in=[fila['codigo'] for fila in productos],
+    ).order_by('codigo_barra').values_list('codigo_barra', 'producto_id'):
+        barras.setdefault(codigo, []).append(barra)
+    datos = []
+    for fila in productos:
+        propias = barras.get(fila['codigo'], [])
+        if fila['codigo_barra'] and fila['codigo_barra'] not in propias:
+            propias.insert(0, fila['codigo_barra'])
+        datos.append({
+            'codigo': fila['codigo'],
+            'descripcion': fila['descripcion'],
+            'codigo_barra': fila['codigo_barra'],
+            'embalaje': _texto_embalaje(fila['embalaje']),
+            'barras': propias,
+        })
+    return JsonResponse({'productos': datos, 'pagina': pagina, 'hay_mas': len(filas) > tamano})
 
 
 @require_POST
@@ -499,7 +523,9 @@ def sincronizar(request: HttpRequest, asignacion_id: UUID) -> JsonResponse:
             codigo = valor['producto'].strip()
             producto = ProductoSnapshot.objects.filter(codigo=codigo).first()
             if producto is None:
-                candidatos = list(ProductoSnapshot.objects.filter(codigo_barra=codigo).order_by('codigo')[:2])
+                candidatos = list(ProductoSnapshot.objects.filter(
+                    Q(codigo_barra=codigo) | Q(barras__codigo_barra=codigo),
+                ).distinct().order_by('codigo')[:2])
                 if len(candidatos) > 1:
                     transaction.set_rollback(True)
                     return JsonResponse({'error': 'El código de barras corresponde a más de un producto.'}, status=409)

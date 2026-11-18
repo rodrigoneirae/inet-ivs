@@ -114,7 +114,19 @@ class ProductoSnapshot(models.Model):
     codigo = models.CharField(max_length=30, primary_key=True)
     descripcion = models.CharField(max_length=120)
     codigo_barra = models.CharField(max_length=30, blank=True, db_index=True)
+    embalaje = models.DecimalField(max_digits=12, decimal_places=4, null=True, blank=True)
     actualizado_en = models.DateTimeField(auto_now=True)
+
+
+class ProductoBarra(models.Model):
+    """Código de lector de un producto. I-NET puede tener varios por producto."""
+
+    producto = models.ForeignKey(ProductoSnapshot, on_delete=models.CASCADE, related_name='barras')
+    codigo_barra = models.CharField(max_length=30, db_index=True)
+
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=['producto', 'codigo_barra'],
+                                               name='inv_barra_unica')]
 
 
 class TokenMovil(models.Model):
